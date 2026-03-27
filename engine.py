@@ -32,15 +32,14 @@ import numpy as np
 from typing import Dict, List, Optional
 from datetime import datetime
 
-from config.config import BotConfig, get_config
-from core.models import (
-    PortfolioState, Trade, Signal, Side, TradeStatus,
-    CircuitBreakerState, MarketSnapshot
-)
-from indicators.indicators import compute_snapshot, IndicatorSnapshot
-from strategies.ema_crossover import EMACrossoverStrategy
-from risk.risk_engine import RiskEngine
-from execution.exchange import ExchangeConnector, ExchangeError
+from config import BotConfig, get_config
+from models import PortfolioState, Trade, Signal, Side
+from indicators import compute_snapshot, IndicatorSnapshot
+from ema_crossover import EMACrossoverStrategy
+from risk_engine import RiskEngine
+from exchange import ExchangeConnector, ExchangeError
+
+from ui_state import read_control_command, clear_control_command, write_state
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +67,8 @@ class BotEngine:
         self.exchange   = ExchangeConnector(self.cfg.exchange)
         self._bar_index: Dict[str, int] = {}
         self._running = False
+        self._paused = False
+        self._last_error: Optional[str] = None
         self._setup_logging()
 
     # ─── Lifecycle ────────────────────────────────────────────
@@ -113,15 +114,42 @@ class BotEngine:
             try:
                 cycle_start = datetime.utcnow()
 
-                # Process each symbol
-                for symbol in self.cfg.universe.symbols:
-                    await self._process_symbol(symbol)
+                # UI control channel
+                cmd = read_control_command(self.cfg)
+                if cmd:
+                    if cmd == "pause":
+                        self._paused = True
+                        logger.warning("Paused by UI control")
+                    elif cmd == "resume":
+                        self._paused = False
+                        logger.warning("Resumed by UI control")
+                    elif cmd == "stop":
+                        logger.warning("Stop requested by UI control")
+                        await self.stop()
+                        clear_control_command(self.cfg)
+                        return
+                    clear_control_command(self.cfg)
+
+                # Process each symbol (skip if paused)
+                if not self._paused:
+                    for symbol in self.cfg.universe.symbols:
+                        await self._process_symbol(symbol)
 
                 # Portfolio-level checks
                 self.risk.update_circuit_breaker(self.portfolio)
 
-                # Heartbeat
+                # Write state snapshot for UI
                 elapsed = (datetime.utcnow() - cycle_start).total_seconds()
+                write_state(
+                    cfg=self.cfg,
+                    portfolio=self.portfolio,
+                    last_cycle_seconds=elapsed,
+                    last_error=self._last_error,
+                    paused=self._paused,
+                )
+
+                self._last_error = None
+
                 logger.debug(f"Cycle complete in {elapsed:.2f}s")
 
                 # Sleep until next candle
@@ -131,6 +159,18 @@ class BotEngine:
                 break
             except Exception as e:
                 logger.error(f"Loop error: {e}", exc_info=True)
+                self._last_error = str(e)
+                # write snapshot including error
+                try:
+                    write_state(
+                        cfg=self.cfg,
+                        portfolio=self.portfolio,
+                        last_cycle_seconds=None,
+                        last_error=self._last_error,
+                        paused=self._paused,
+                    )
+                except Exception:
+                    pass
                 await asyncio.sleep(60)  # Brief pause before retry
 
     async def _process_symbol(self, symbol: str):

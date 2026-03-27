@@ -10,17 +10,17 @@ import numpy as np
 import pytest
 from datetime import datetime
 
-from core.models import (
+from models import (
     PortfolioState, Trade, Signal, SignalComponent,
     Side, SignalStrength, TradeStatus, CircuitBreakerState, OHLCV
 )
-from indicators.indicators import (
+from indicators import (
     ema, rsi, atr, macd, bollinger_bands, volume_ratio,
     compute_snapshot, IndicatorSnapshot
 )
-from strategies.ema_crossover import EMACrossoverStrategy
-from risk.risk_engine import RiskEngine
-from config.config import EMAStrategyConfig, RiskConfig
+from ema_crossover import EMACrossoverStrategy
+from risk_engine import RiskEngine
+from config import EMAStrategyConfig, RiskConfig
 
 
 # ──────────────────────────────────────────────────────────────

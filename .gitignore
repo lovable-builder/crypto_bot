@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtualenv
+.venv/
+venv/
+ENV/
+
+# Secrets
+.env
+.env.*
+
+# Runtime outputs
+logs/
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Cline local data (should never be committed)
+~/.cline/

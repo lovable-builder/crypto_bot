@@ -7,9 +7,9 @@ import numpy as np
 from typing import Optional, List, Dict
 from datetime import datetime
 
-from core.models import Signal, SignalComponent, SignalStrength, Side
-from indicators.indicators import IndicatorSnapshot
-from config.config import EMAStrategyConfig
+from models import Signal, SignalComponent, SignalStrength, Side
+from indicators import IndicatorSnapshot
+from config import EMAStrategyConfig
 
 SIGNAL_WEIGHTS = {
     "ema_crossover":  0.30,

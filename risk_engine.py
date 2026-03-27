@@ -2,11 +2,11 @@ import logging
 from typing import Optional, Tuple
 from datetime import datetime
 
-from core.models import (
-    Signal, Trade, Order, Side, PortfolioState,
-    CircuitBreakerState, TradeStatus
+from models import (
+    Signal, Trade, Side, PortfolioState,
+    CircuitBreakerState
 )
-from config.config import RiskConfig
+from config import RiskConfig
 
 logger = logging.getLogger(__name__)
 

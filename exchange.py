@@ -13,8 +13,8 @@ import time
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from core.models import Order, OrderStatus, Side, OHLCV
-from config.config import ExchangeConfig
+from models import Order, OrderStatus, Side, OHLCV
+from config import ExchangeConfig
 
 logger = logging.getLogger(__name__)
 

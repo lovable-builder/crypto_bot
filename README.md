@@ -21,6 +21,30 @@ python -m core.engine
 # Set config.mode = "backtest" in config/config.py
 ```
 
+## UI Dashboard (Streamlit)
+
+The bot can publish a lightweight JSON snapshot to `logs/state.json` and a Streamlit UI can read it.
+
+### 1) Start the bot (writes logs/state.json)
+
+```bash
+python engine.py
+```
+
+### 2) Start the UI
+
+```bash
+streamlit run ui/app.py
+```
+
+### UI Controls
+
+The UI can send commands by writing `logs/control.json`:
+- **Pause**: stops processing new candles (does not close positions)
+- **Resume**: continues processing
+- **Stop**: triggers graceful shutdown
+
+
 ## Architecture
 
 ```
