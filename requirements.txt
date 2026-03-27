@@ -1,0 +1,13 @@
+# Core
+ccxt>=4.2.0               # Exchange connectivity (supports 100+ exchanges)
+pandas>=2.0.0             # Data manipulation
+numpy>=1.24.0             # Numerical computing
+python-dotenv>=1.0.0      # .env file support
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# Optional (monitoring dashboard — Phase 5)
+# fastapi>=0.104.0
+# uvicorn>=0.24.0
