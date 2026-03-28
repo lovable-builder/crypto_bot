@@ -1,40 +1,111 @@
-INFO:     Started server process [27748]
+INFO:     Started server process [26816]
 INFO:     Waiting for application startup.
-2026-03-28 14:39:25,794  INFO      scanner  Scanner connected to Gate.io
-2026-03-28 14:39:30,131  INFO      server  Initial news: 20 items
-2026-03-28 14:39:30,132  INFO      scanner  Scan start  tf=4h  max_pairs=80
+2026-03-28 21:48:07,653  INFO      scanner  Scanner connected to Gate.io
+2026-03-28 21:48:13,290  INFO      server  Initial news: 20 items
+2026-03-28 21:48:13,291  INFO      scanner  Scan start  tf=4h  max_pairs=80
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-2026-03-28 14:39:30,572  INFO      scanner    80 eligible USDT pairs
-INFO:     127.0.0.1:62290 - "GET /api/news HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50940 - "WebSocket /ws" [accepted]
-2026-03-28 14:39:32,285  INFO      server  WS connected (1 clients)
+2026-03-28 21:48:13,771  INFO      scanner    80 eligible USDT pairs
+INFO:     127.0.0.1:59915 - "GET /api/journal HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59917 - "GET / HTTP/1.1" 200 OK
+2026-03-28 21:48:24,988  INFO      scanner    Scan done: 77/80 pairs
+2026-03-28 21:48:24,989  INFO      server  Fetching sentiment for 25 coins…
+2026-03-28 21:48:29,063  WARNING   news  Sentiment fetch failed for BTC3S: 'NoneType' object has no attribute 'get'
+2026-03-28 21:48:29,800  WARNING   news  Sentiment fetch failed for ETH5L: 'NoneType' object has no attribute 'get'
+2026-03-28 21:48:29,832  WARNING   news  Sentiment fetch failed for WBTC: 'NoneType' object has no attribute 'get'
+2026-03-28 21:48:30,432  WARNING   news  Sentiment fetch failed for SOL5L: 'NoneType' object has no attribute 'get'
+2026-03-28 21:48:30,568  WARNING   news  Sentiment fetch failed for BTC3L: 'NoneType' object has no attribute 'get'
+2026-03-28 21:48:35,059  WARNING   news  Sentiment fetch failed for BTC5L: 'NoneType' object has no attribute 'get'
+2026-03-28 21:48:40,201  INFO      server  Sentiment enrichment done
+2026-03-28 21:48:40,204  INFO      journal  Journal: logged PTB/USDT BEARISH entry=0.001351
+2026-03-28 21:48:40,217  INFO      journal  Journal: logged SIREN/USDT BEARISH entry=1.79548
+2026-03-28 21:48:40,217  INFO      server  Journal: auto-logged 2 new signals
+2026-03-28 21:48:40,226  INFO      server  Broadcast 77 enriched results
+INFO:     127.0.0.1:53937 - "GET /api/journal HTTP/1.1" 200 OK
+2026-03-28 21:51:17,419  INFO      server  News refreshed: 20 items
+INFO:     127.0.0.1:52248 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52248 - "GET /api/journal HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55857 - "WebSocket /ws" [accepted]
+2026-03-28 21:51:46,917  INFO      server  WS connected (1 clients)
 INFO:     connection open
-2026-03-28 14:39:37,038  INFO      scanner    Scan done: 77/80 pairs
-2026-03-28 14:39:37,041  INFO      server  Fetching sentiment for 25 coins…
-2026-03-28 14:39:38,756  WARNING   news  Sentiment fetch failed for XRP3S: 'NoneType' object has no attribute 'get'
-2026-03-28 14:39:39,238  WARNING   news  Sentiment fetch failed for XPL: 'NoneType' object has no attribute 'get'
-2026-03-28 14:39:39,272  WARNING   news  Sentiment fetch failed for BTC5L: 'NoneType' object has no attribute 'get'
-2026-03-28 14:39:39,294  WARNING   news  Sentiment fetch failed for XRP5L: 'NoneType' object has no attribute 'get'
-2026-03-28 14:39:40,251  WARNING   news  Sentiment fetch failed for DOGE5L: 'NoneType' object has no attribute 'get'
-2026-03-28 14:39:41,272  INFO      server  Sentiment enrichment done
-2026-03-28 14:39:41,279  INFO      server  Broadcast 77 enriched results
-INFO:     127.0.0.1:60425 - "GET /api/sentiment/ETH HTTP/1.1" 200 OK
-INFO:     127.0.0.1:60427 - "GET /api/results HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53520 - "GET /api/ohlcv/ON-USDT?timeframe=4h&limit=200 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:55347 - "GET /api/news/ON HTTP/1.1" 200 OK
-INFO:     127.0.0.1:62002 - "GET /api/ohlcv/ON-USDT?timeframe=1d&limit=200 HTTP/1.1" 200 OK
-2026-03-28 14:42:33,000  INFO      server  News refreshed: 20 items
-2026-03-28 14:44:30,125  INFO      server  Auto-scan triggered
-2026-03-28 14:44:30,126  INFO      scanner  Scan start  tf=4h  max_pairs=80
-2026-03-28 14:44:32,958  INFO      scanner    80 eligible USDT pairs
-2026-03-28 14:44:40,567  INFO      scanner    Scan done: 77/80 pairs
-2026-03-28 14:44:40,568  INFO      server  Fetching sentiment for 25 coins…
-2026-03-28 14:44:42,283  WARNING   news  Sentiment fetch failed for XPL: 'NoneType' object has no attribute 'get'
-2026-03-28 14:44:42,311  WARNING   news  Sentiment fetch failed for XRP3S: 'NoneType' object has no attribute 'get'
-2026-03-28 14:44:42,732  WARNING   news  Sentiment fetch failed for BTC5L: 'NoneType' object has no attribute 'get'
-2026-03-28 14:44:42,804  WARNING   news  Sentiment fetch failed for XRP5L: 'NoneType' object has no attribute 'get'
-2026-03-28 14:44:43,325  WARNING   news  Sentiment fetch failed for DOGE5L: 'NoneType' object has no attribute 'get'
-2026-03-28 14:44:44,334  INFO      server  Sentiment enrichment done
-2026-03-28 14:44:44,342  INFO      server  Broadcast 77 enriched results
-2026-03-28 14:45:35,870  INFO      server  News refreshed: 20 items
+INFO:     127.0.0.1:52023 - "GET /api/journal HTTP/1.1" 200 OK
+2026-03-28 21:53:13,308  INFO      server  Auto-scan triggered
+2026-03-28 21:53:13,309  INFO      scanner  Scan start  tf=4h  max_pairs=80
+2026-03-28 21:53:15,747  INFO      scanner    80 eligible USDT pairs
+2026-03-28 21:53:25,071  INFO      scanner    Scan done: 77/80 pairs
+2026-03-28 21:53:25,072  INFO      server  Fetching sentiment for 25 coins…
+2026-03-28 21:53:26,705  WARNING   news  Sentiment fetch failed for BTC3S: 'NoneType' object has no attribute 'get'
+2026-03-28 21:53:27,203  WARNING   news  Sentiment fetch failed for WBTC: 'NoneType' object has no attribute 'get'
+2026-03-28 21:53:27,206  WARNING   news  Sentiment fetch failed for ETH5L: 'NoneType' object has no attribute 'get'
+2026-03-28 21:53:27,279  WARNING   news  Sentiment fetch failed for BTC3L: 'NoneType' object has no attribute 'get'
+2026-03-28 21:53:27,841  WARNING   news  Sentiment fetch failed for SOL5L: 'NoneType' object has no attribute 'get'
+2026-03-28 21:53:28,448  WARNING   news  Sentiment fetch failed for BTC5L: 'NoneType' object has no attribute 'get'
+2026-03-28 21:53:29,454  INFO      server  Sentiment enrichment done
+2026-03-28 21:53:29,462  INFO      server  Broadcast 77 enriched results
+2026-03-28 21:54:20,764  INFO      server  News refreshed: 20 items
+2026-03-28 21:57:24,408  INFO      server  News refreshed: 20 items
+INFO:     127.0.0.1:55338 - "GET / HTTP/1.1" 200 OK
+2026-03-28 21:57:55,414  INFO      server  WS disconnected (0 clients)
+INFO:     connection closed
+INFO:     127.0.0.1:55338 - "GET /api/journal HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49929 - "WebSocket /ws" [accepted]
+2026-03-28 21:57:55,792  INFO      server  WS connected (1 clients)
+INFO:     connection open
+INFO:     127.0.0.1:64626 - "GET /api/journal HTTP/1.1" 200 OK
+2026-03-28 21:58:29,463  INFO      server  Auto-scan triggered
+2026-03-28 21:58:29,463  INFO      scanner  Scan start  tf=4h  max_pairs=80
+2026-03-28 21:58:34,311  INFO      scanner    80 eligible USDT pairs
+2026-03-28 21:58:52,764  INFO      scanner    Scan done: 77/80 pairs
+2026-03-28 21:58:52,765  INFO      server  Fetching sentiment for 25 coins…
+2026-03-28 21:58:55,142  WARNING   news  Sentiment fetch failed for BTC3S: 'NoneType' object has no attribute 'get'
+2026-03-28 21:58:55,482  WARNING   news  Sentiment fetch failed for ETH5L: 'NoneType' object has no attribute 'get'
+2026-03-28 21:58:55,687  WARNING   news  Sentiment fetch failed for WBTC: 'NoneType' object has no attribute 'get'
+2026-03-28 21:58:55,687  WARNING   news  Sentiment fetch failed for BTC3L: 'NoneType' object has no attribute 'get'
+2026-03-28 21:58:56,364  WARNING   news  Sentiment fetch failed for SOL5L: 'NoneType' object has no attribute 'get'
+2026-03-28 21:58:56,916  WARNING   news  Sentiment fetch failed for ONDO: 'NoneType' object has no attribute 'get'
+2026-03-28 21:58:57,388  WARNING   news  Sentiment fetch failed for BTC5L: 'NoneType' object has no attribute 'get'
+2026-03-28 21:58:57,910  INFO      server  Sentiment enrichment done
+2026-03-28 21:58:57,915  INFO      server  Broadcast 77 enriched results
+2026-03-28 22:00:27,451  INFO      server  News refreshed: 20 items
+2026-03-28 22:03:30,910  INFO      server  News refreshed: 20 items
+2026-03-28 22:03:57,936  INFO      server  Auto-scan triggered
+2026-03-28 22:03:57,936  INFO      scanner  Scan start  tf=4h  max_pairs=80
+2026-03-28 22:04:00,494  INFO      scanner    80 eligible USDT pairs
+2026-03-28 22:04:08,643  INFO      scanner    Scan done: 77/80 pairs
+2026-03-28 22:04:08,645  INFO      server  Fetching sentiment for 25 coins…
+2026-03-28 22:04:09,729  WARNING   news  Sentiment fetch failed for SUI5L: 'NoneType' object has no attribute 'get'
+2026-03-28 22:04:10,698  WARNING   news  Sentiment fetch failed for WBTC: 'NoneType' object has no attribute 'get'
+2026-03-28 22:04:10,729  WARNING   news  Sentiment fetch failed for BTC3S: 'NoneType' object has no attribute 'get'
+2026-03-28 22:04:11,207  WARNING   news  Sentiment fetch failed for AIA: 'NoneType' object has no attribute 'get'
+2026-03-28 22:04:11,244  WARNING   news  Sentiment fetch failed for DOGE5S: 'NoneType' object has no attribute 'get'
+2026-03-28 22:04:11,686  WARNING   news  Sentiment fetch failed for BTC3L: 'NoneType' object has no attribute 'get'
+2026-03-28 22:04:11,756  WARNING   news  Sentiment fetch failed for SOL5L: 'NoneType' object has no attribute 'get'
+2026-03-28 22:04:12,202  WARNING   news  Sentiment fetch failed for BTC5L: 'NoneType' object has no attribute 'get'
+2026-03-28 22:04:12,731  WARNING   news  Sentiment fetch failed for ONDO: 'NoneType' object has no attribute 'get'
+2026-03-28 22:04:13,806  INFO      server  Sentiment enrichment done
+2026-03-28 22:04:13,810  INFO      journal  Journal: logged DOGE5S/USDT BEARISH entry=0.7855
+2026-03-28 22:04:13,810  INFO      server  Journal: auto-logged 1 new signals
+2026-03-28 22:04:13,824  INFO      server  Broadcast 77 enriched results
+2026-03-28 22:06:33,882  INFO      server  News refreshed: 20 items
+INFO:     127.0.0.1:54869 - "GET /api/journal HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58504 - "GET /api/ohlcv/DOGE5S-USDT?timeframe=4h&limit=200 HTTP/1.1" 200 OK
+2026-03-28 22:08:31,164  WARNING   news  Sentiment fetch failed for DOGE5S: 'NoneType' object has no attribute 'get'
+2026-03-28 22:08:31,668  WARNING   news  Sentiment fetch failed for DOGE5S: 'NoneType' object has no attribute 'get'
+INFO:     127.0.0.1:52845 - "GET /api/news/DOGE5S HTTP/1.1" 200 OK
+2026-03-28 22:09:13,832  INFO      server  Auto-scan triggered
+2026-03-28 22:09:13,832  INFO      scanner  Scan start  tf=4h  max_pairs=80
+2026-03-28 22:09:15,862  INFO      scanner    80 eligible USDT pairs
+2026-03-28 22:09:24,653  INFO      scanner    Scan done: 77/80 pairs
+2026-03-28 22:09:24,655  INFO      server  Fetching sentiment for 25 coins…
+2026-03-28 22:09:25,832  WARNING   news  Sentiment fetch failed for SUI5L: 'NoneType' object has no attribute 'get'
+2026-03-28 22:09:26,320  WARNING   news  Sentiment fetch failed for BTC3S: 'NoneType' object has no attribute 'get'
+2026-03-28 22:09:26,747  WARNING   news  Sentiment fetch failed for WBTC: 'NoneType' object has no attribute 'get'
+2026-03-28 22:09:26,803  WARNING   news  Sentiment fetch failed for BTC3L: 'NoneType' object has no attribute 'get'
+2026-03-28 22:09:26,840  WARNING   news  Sentiment fetch failed for AIA: 'NoneType' object has no attribute 'get'
+2026-03-28 22:09:26,840  WARNING   news  Sentiment fetch failed for DOGE5S: 'NoneType' object has no attribute 'get'
+2026-03-28 22:09:27,317  WARNING   news  Sentiment fetch failed for SOL5L: 'NoneType' object has no attribute 'get'
+2026-03-28 22:09:27,776  WARNING   news  Sentiment fetch failed for BTC5L: 'NoneType' object has no attribute 'get'
+2026-03-28 22:09:27,902  WARNING   news  Sentiment fetch failed for ONDO: 'NoneType' object has no attribute 'get'
+2026-03-28 22:09:28,794  INFO      server  Sentiment enrichment done
+2026-03-28 22:09:28,802  INFO      server  Broadcast 77 enriched results
+2026-03-28 22:09:37,006  INFO      server  News refreshed: 20 items

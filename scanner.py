@@ -21,6 +21,7 @@ from config import EMAStrategyConfig
 from ema_crossover import EMACrossoverStrategy
 from indicators import compute_snapshot
 from models import Signal
+import probability as prob_engine
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,12 @@ class Opportunity:
     stop: Optional[float]
     target: Optional[float]
     scanned_at: str
+    # Probability / grading fields
+    grade: str         = "C"     # "A" | "B" | "C"
+    probability: float = 0.50
+    expected_value: float = 0.0
+    mtf_aligned: bool  = False
+    daily_trend: str   = "SIDEWAYS"
 
     def to_dict(self) -> dict:
         def safe(v, d=2):
@@ -68,10 +75,15 @@ class Opportunity:
             "adx":         safe(self.adx, 1),
             "macd_hist":   safe(self.macd_hist, 8),
             "trend":       self.trend,
-            "entry":       safe(self.entry, 6),
-            "stop":        safe(self.stop, 6),
-            "target":      safe(self.target, 6),
-            "scanned_at":  self.scanned_at,
+            "entry":          safe(self.entry, 6),
+            "stop":           safe(self.stop, 6),
+            "target":         safe(self.target, 6),
+            "scanned_at":     self.scanned_at,
+            "grade":          self.grade,
+            "probability":    round(self.probability, 4),
+            "expected_value": round(self.expected_value, 3),
+            "mtf_aligned":    self.mtf_aligned,
+            "daily_trend":    self.daily_trend,
         }
 
 
@@ -96,6 +108,7 @@ class MarketScanner:
         self._exchange = None
         self._strategy = EMACrossoverStrategy(EMAStrategyConfig())
         self._connected = False
+        self._daily_cache: Dict[str, tuple] = {}   # symbol → (ts, raw_daily)
 
     # ── helpers ────────────────────────────────────────────────
 
@@ -171,7 +184,43 @@ class MarketScanner:
 
             snap = compute_snapshot(closes, highs, lows, volumes)
 
-            # EMA cross label
+            # ── Daily timeframe (MTF alignment) ──────────────────
+            import time as _time
+            now_ts = _time.time()
+            cached = self._daily_cache.get(symbol)
+            if cached and (now_ts - cached[0]) < 1800:   # 30-min cache
+                raw_daily = cached[1]
+            else:
+                try:
+                    raw_daily = self._exchange.fetch_ohlcv(symbol, "1d", limit=300)
+                    self._daily_cache[symbol] = (now_ts, raw_daily)
+                except Exception:
+                    raw_daily = []
+
+            if len(raw_daily) >= 50:
+                try:
+                    d_closes  = np.array([b[4] for b in raw_daily], dtype=float)
+                    d_highs   = np.array([b[2] for b in raw_daily], dtype=float)
+                    d_lows    = np.array([b[3] for b in raw_daily], dtype=float)
+                    d_volumes = np.array([b[5] for b in raw_daily], dtype=float)
+                    d_snap = compute_snapshot(d_closes, d_highs, d_lows, d_volumes)
+                    # Use EMA200 if available, fall back to EMA21 for shorter-history coins
+                    ref_ema = d_snap.ema_trend if not _isnan(d_snap.ema_trend) and d_snap.ema_trend > 0 else (
+                        d_snap.ema_slow if not _isnan(d_snap.ema_slow) and d_snap.ema_slow > 0 else None
+                    )
+                    if ref_ema:
+                        d_pct = (d_snap.close - ref_ema) / ref_ema * 100
+                        daily_trend = "UPTREND" if d_pct > 0.5 else (
+                            "DOWNTREND" if d_pct < -0.5 else "SIDEWAYS"
+                        )
+                    else:
+                        daily_trend = "SIDEWAYS"
+                except Exception:
+                    daily_trend = "SIDEWAYS"
+            else:
+                daily_trend = "SIDEWAYS"
+
+            # ── EMA cross label ───────────────────────────────────
             if snap.ema_cross_bullish:
                 ema_cross = "BULLISH"
             elif snap.ema_cross_bearish:
@@ -179,14 +228,14 @@ class MarketScanner:
             else:
                 ema_cross = "NONE"
 
-            # Trend via EMA200
+            # ── Trend via EMA200 ──────────────────────────────────
             if not _isnan(snap.ema_trend) and snap.ema_trend > 0:
                 pct = (snap.close - snap.ema_trend) / snap.ema_trend * 100
                 trend = "UPTREND" if pct > 1 else ("DOWNTREND" if pct < -1 else "SIDEWAYS")
             else:
                 trend = "SIDEWAYS"
 
-            # Formal strategy signal
+            # ── Formal strategy signal ────────────────────────────
             signal_obj: Optional[Signal] = self._strategy.evaluate(symbol, snap)
 
             if signal_obj:
@@ -242,6 +291,39 @@ class MarketScanner:
 
                 entry = stop = target = None
 
+            # ── MTF alignment ─────────────────────────────────────
+            mtf_aligned = (
+                (sig_label == "BULLISH" and daily_trend == "UPTREND") or
+                (sig_label == "BEARISH" and daily_trend == "DOWNTREND")
+            )
+
+            # ── Probability + grade ───────────────────────────────
+            adx_val = snap.adx if not _isnan(snap.adx) else None
+            probability = prob_engine.estimate_win_probability(
+                score=score,
+                mtf_aligned=mtf_aligned,
+                sentiment_confluence=False,   # refined post-sentiment in server.py
+                adx=adx_val,
+                rsi=snap.rsi if not _isnan(snap.rsi) else None,
+            )
+            grade = prob_engine.signal_grade(probability, score, mtf_aligned)
+
+            # ── Grade-adjusted target (formal signal only) ────────
+            if signal_obj and not _isnan(snap.atr) and snap.atr > 0:
+                atr_tp_mult = {"A": 4.0, "B": 3.0, "C": 2.5}.get(grade, 3.0)
+                if sig_label == "BULLISH":
+                    target = round(entry + snap.atr * atr_tp_mult, 6)
+                else:
+                    target = round(entry - snap.atr * atr_tp_mult, 6)
+
+            # ── Expected value ────────────────────────────────────
+            grade_risk = prob_engine.GRADE_RISK.get(grade, 1.5)
+            if entry and stop and target and abs(entry - stop) > 0:
+                rr = abs(target - entry) / abs(entry - stop)
+            else:
+                rr = 2.0
+            ev = prob_engine.expected_value_pct(probability, rr, grade_risk)
+
             return Opportunity(
                 symbol=symbol,
                 price=market["price"],
@@ -258,6 +340,11 @@ class MarketScanner:
                 stop=stop,
                 target=target,
                 scanned_at=datetime.utcnow().isoformat() + "Z",
+                grade=grade,
+                probability=probability,
+                expected_value=ev,
+                mtf_aligned=mtf_aligned,
+                daily_trend=daily_trend,
             )
 
         except Exception as e:

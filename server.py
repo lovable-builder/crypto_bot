@@ -13,7 +13,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
@@ -22,6 +22,9 @@ import uvicorn
 
 from scanner import MarketScanner
 from news import NewsClient, confluence_label
+import journal as jnl
+import capital as cap_mgr
+import probability as prob_engine
 
 # ── Logging ───────────────────────────────────────────────────
 logging.basicConfig(
@@ -93,6 +96,29 @@ async def enrich_with_sentiment(results: List[dict]) -> List[dict]:
             r["sentiment"] = None
             r["confluence"] = "MIXED"
 
+        # Re-compute probability now that we have sentiment data
+        if r.get("score") is not None:
+            sentiment_strong = (r.get("confluence") == "STRONG")
+            new_prob = prob_engine.estimate_win_probability(
+                score=r.get("score", 0),
+                mtf_aligned=r.get("mtf_aligned", False),
+                sentiment_confluence=sentiment_strong,
+                adx=r.get("adx"),
+                rsi=r.get("rsi"),
+            )
+            new_grade = prob_engine.signal_grade(
+                new_prob, r.get("score", 0), r.get("mtf_aligned", False)
+            )
+            grade_risk = prob_engine.GRADE_RISK.get(new_grade, 1.5)
+            entry, stop, target = r.get("entry"), r.get("stop"), r.get("target")
+            if entry and stop and target and abs(entry - stop) > 0:
+                rr = abs(target - entry) / abs(entry - stop)
+            else:
+                rr = 2.0
+            r["probability"]    = round(new_prob, 4)
+            r["grade"]          = new_grade
+            r["expected_value"] = prob_engine.expected_value_pct(new_prob, rr, grade_risk)
+
     logger.info("Sentiment enrichment done")
     return results
 
@@ -132,6 +158,18 @@ async def run_scan(timeframe: str = "4h", max_pairs: int = 80):
             "total_scanned": len(latest_results),
             "progress":      {"done": max_pairs, "total": max_pairs},
         })
+        # Auto-log actionable signals to journal
+        logged = 0
+        for r in latest_results:
+            r["timeframe"] = timeframe
+            entry = jnl.log_signal(r)
+            if entry:
+                logged += 1
+        if logged:
+            logger.info(f"Journal: auto-logged {logged} new signals")
+            await broadcast({"type": "journal_update", "summary": jnl.get_summary(),
+                             "capital": cap_mgr.get_state()})
+
         await broadcast({
             "type":   "scan_results",
             "data":   latest_results,
@@ -281,6 +319,49 @@ async def api_coin_news(coin: str, limit: int = 10):
         return {"error": str(e)}
 
 
+@app.get("/api/journal")
+async def api_journal(limit: int = 200):
+    return {"entries": jnl.get_entries(limit), "summary": jnl.get_summary()}
+
+
+@app.post("/api/journal/log")
+async def api_journal_log(symbol: str):
+    """Manually log the latest scan result for a symbol."""
+    match = next((r for r in latest_results if r["symbol"] == symbol), None)
+    if not match:
+        return {"ok": False, "reason": "symbol not in latest scan"}
+    entry = jnl.log_signal({**match, "timeframe": scan_status.get("timeframe", "4h")})
+    if entry:
+        await broadcast({"type": "journal_update", "summary": jnl.get_summary()})
+        return {"ok": True, "entry": entry}
+    return {"ok": False, "reason": "already logged or no entry/stop/target"}
+
+
+@app.put("/api/journal/{entry_id}")
+async def api_journal_update(entry_id: str, status: str,
+                              exit_price: Optional[float] = None,
+                              notes: str = ""):
+    updated = jnl.update_entry(entry_id, status, exit_price, notes)
+    if updated:
+        await broadcast({"type": "journal_update", "summary": jnl.get_summary()})
+        return {"ok": True, "entry": updated}
+    return {"ok": False, "reason": "entry not found"}
+
+
+@app.get("/api/capital")
+async def api_capital():
+    """Current capital state and position sizing."""
+    return cap_mgr.get_state()
+
+
+@app.put("/api/capital")
+async def api_capital_update(risk_pct: Optional[float] = None, reset: bool = False):
+    """Update risk % or reset capital to initial."""
+    state = cap_mgr.update_settings(risk_pct=risk_pct, reset=reset)
+    await broadcast({"type": "capital_update", "capital": cap_mgr.get_state()})
+    return state
+
+
 @app.get("/api/sentiment/{coin}")
 async def api_sentiment(coin: str, time_range: str = "24h"):
     """Social sentiment for a coin."""
@@ -309,6 +390,7 @@ async def ws_endpoint(ws: WebSocket):
         "status":        scan_status,
         "news":          market_news_cache,
         "announcements": announcements_cache,
+        "capital":       cap_mgr.get_state(),
     }))
 
     try:

@@ -21,7 +21,8 @@
       "Bash(cmd //c \"taskkill /PID 27252 /F\")",
       "Bash(netstat -ano)",
       "Bash(python:*)",
-      "Bash(PYTHONIOENCODING=utf-8 python << 'EOF':*)"
+      "Bash(PYTHONIOENCODING=utf-8 python << 'EOF':*)",
+      "Bash(cmd //c \"taskkill /F /T /PID 26816\")"
     ]
   }
 }

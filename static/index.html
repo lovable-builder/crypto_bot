@@ -368,6 +368,151 @@ tr.clickable { cursor: pointer; }
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .m-tweet-meta { font-size: 9.5px; color: var(--muted); display: flex; gap: 8px; }
 
+/* ── JOURNAL MODAL ──────────────────────────────────────── */
+.jnl-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.78); z-index: 110;
+  backdrop-filter: blur(4px); align-items: center; justify-content: center;
+}
+.jnl-overlay.open { display: flex; }
+.jnl-modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; width: min(1100px, 97vw); max-height: 92vh;
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0,0,0,.6);
+}
+.jnl-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 18px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.jnl-title { font-size: 16px; font-weight: 700; color: var(--cyan); }
+.jnl-spacer { flex: 1; }
+.jnl-summary {
+  display: flex; gap: 0;
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+  background: var(--card);
+}
+.jnl-stat {
+  padding: 10px 20px; border-right: 1px solid var(--border);
+  text-align: center; min-width: 90px;
+}
+.jnl-stat:last-child { border-right: none; }
+.jnl-stat-lbl { font-size: 9.5px; color: var(--muted); text-transform: uppercase; margin-bottom: 3px; }
+.jnl-stat-val { font-size: 18px; font-weight: 700; }
+
+.jnl-table-wrap { flex: 1; overflow-y: auto; overflow-x: auto; }
+.jnl-table-wrap::-webkit-scrollbar { width: 5px; height: 5px; }
+.jnl-table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.jnl-table { width: 100%; border-collapse: collapse; font-size: 11.5px; min-width: 1000px; }
+.jnl-table thead { position: sticky; top: 0; z-index: 3; }
+.jnl-table th {
+  padding: 8px 10px; background: var(--card); color: var(--muted);
+  font-weight: 600; text-align: left; border-bottom: 1px solid var(--border);
+  font-size: 10px; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap;
+}
+.jnl-table td {
+  padding: 7px 10px; border-bottom: 1px solid rgba(30,35,48,.7);
+  vertical-align: middle; white-space: nowrap;
+}
+.jnl-table tr:hover td { background: rgba(0,212,200,.03); }
+
+/* status badges */
+.st-open   { color: var(--cyan);   background: rgba(0,212,200,.1);  border:1px solid rgba(0,212,200,.3); }
+.st-win    { color: var(--green);  background: rgba(0,200,83,.1);   border:1px solid rgba(0,200,83,.3); }
+.st-loss   { color: var(--red);    background: rgba(255,61,90,.1);  border:1px solid rgba(255,61,90,.3); }
+.st-canc   { color: var(--muted);  background: rgba(90,100,128,.1); border:1px solid var(--border); }
+
+.status-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 20px;
+  font-size: 10px; font-weight: 700;
+}
+
+/* outcome actions */
+.outcome-actions { display: flex; gap: 4px; align-items: center; }
+.act-btn {
+  padding: 2px 9px; border-radius: 5px; border: 1px solid var(--border);
+  font-size: 10px; font-weight: 600; cursor: pointer; background: var(--bg);
+  transition: background .15s;
+}
+.act-win  { color: var(--green); border-color: rgba(0,200,83,.4); }
+.act-win:hover  { background: rgba(0,200,83,.15); }
+.act-loss { color: var(--red);   border-color: rgba(255,61,90,.4); }
+.act-loss:hover { background: rgba(255,61,90,.15); }
+.act-canc { color: var(--muted); }
+.act-canc:hover { background: rgba(90,100,128,.15); }
+.exit-input {
+  width: 80px; background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 5px;
+  padding: 2px 6px; font-size: 10px; outline: none;
+}
+.exit-input:focus { border-color: var(--cyan); }
+
+.jnl-empty { text-align: center; padding: 60px; color: var(--muted); font-size: 13px; }
+
+/* ── GRADE BADGES ───────────────────────────────────────── */
+.grade-a {
+  display: inline-block; padding: 2px 9px; border-radius: 4px;
+  font-size: 11px; font-weight: 800; letter-spacing: .5px;
+  background: rgba(0,200,83,.15); color: var(--green);
+  border: 1px solid rgba(0,200,83,.5);
+  box-shadow: 0 0 6px rgba(0,200,83,.25);
+}
+.grade-b {
+  display: inline-block; padding: 2px 9px; border-radius: 4px;
+  font-size: 11px; font-weight: 800; letter-spacing: .5px;
+  background: rgba(0,212,200,.1); color: var(--cyan);
+  border: 1px solid rgba(0,212,200,.35);
+}
+.grade-c {
+  display: inline-block; padding: 2px 9px; border-radius: 4px;
+  font-size: 11px; font-weight: 800; letter-spacing: .5px;
+  background: rgba(90,100,128,.12); color: var(--muted);
+  border: 1px solid var(--border);
+}
+.prob-pct  { font-size: 10.5px; color: var(--muted); }
+.ev-pos    { color: var(--green); font-weight: 700; font-size: 11px; }
+.ev-neg    { color: var(--red);   font-weight: 700; font-size: 11px; }
+.mtf-ok    { color: var(--green); font-size: 10px; font-weight: 700; }
+.mtf-no    { color: var(--red);   font-size: 10px; }
+
+/* ── PROJECTION TABLE ───────────────────────────────────── */
+.proj-wrap  { padding: 10px 18px 14px; background: var(--card); border-top: 1px solid var(--border); flex-shrink: 0; }
+.proj-title { font-size: 11px; font-weight: 700; color: var(--cyan); margin-bottom: 6px; }
+.proj-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.proj-table th { padding: 5px 10px; background: var(--surface); color: var(--muted);
+  font-size: 10px; text-transform: uppercase; letter-spacing: .5px; text-align: left;
+  border-bottom: 1px solid var(--border); }
+.proj-table td { padding: 6px 10px; border-bottom: 1px solid rgba(30,35,48,.5); }
+.proj-cap  { color: var(--cyan);  font-weight: 700; }
+.proj-ret  { color: var(--green); font-weight: 700; }
+
+/* ── CHART WRAP (multi-pane) ────────────────────────────── */
+#chartWrap {
+  display: flex; flex-direction: column;
+  flex: 1; min-height: 0; overflow: hidden;
+}
+#chartMain { flex: 3; min-height: 0; }
+.chart-sub  {
+  height: 90px; flex-shrink: 0;
+  border-top: 1px solid var(--border);
+}
+
+/* ── POSITION SIZING PANEL ──────────────────────────────── */
+.pos-panel {
+  display: flex; align-items: center; gap: 0; flex-wrap: wrap;
+  padding: 5px 10px; background: var(--card);
+  border-top: 1px solid var(--border); flex-shrink: 0;
+  font-size: 11px; color: var(--muted); min-height: 30px;
+}
+.pp-item { display: flex; align-items: center; gap: 4px; padding: 0 10px;
+  border-right: 1px solid var(--border); }
+.pp-item:last-child { border-right: none; }
+.pp-item b { color: var(--text); }
+.pp-cap b  { color: var(--cyan); }
+.pp-growth b { color: var(--green); }
+.pp-pos b  { color: var(--orange); }
+.pp-risk b { color: var(--yellow); }
+
 /* ── TOAST ──────────────────────────────────────────────── */
 .toast {
   position: fixed; bottom: 24px; right: 24px; padding: 9px 16px;
@@ -390,6 +535,7 @@ tr.clickable { cursor: pointer; }
   </div>
   <div class="h-spacer"></div>
   <div class="controls">
+    <button class="btn btn-ghost" id="jnlBtn" onclick="openJournal()">📓 Journal <span id="jnlOpenBadge" style="display:none;background:var(--cyan);color:#000;border-radius:10px;padding:0 5px;font-size:10px;margin-left:3px">0</span></button>
     <button class="btn btn-ghost active" id="newsToggleBtn" onclick="toggleNews()">📰 News</button>
     <div style="display:flex;align-items:center;gap:5px">
       <label>TF</label>
@@ -416,6 +562,10 @@ tr.clickable { cursor: pointer; }
   <div class="stat-card"><div class="stat-label">Conflicted</div><div class="stat-value c-orange" id="stConflict">—</div></div>
   <div class="stat-card"><div class="stat-label">EMA Cross</div><div class="stat-value c-purple" id="stCross">—</div></div>
   <div class="stat-card"><div class="stat-label">Last Scan</div><div class="stat-value c-muted" style="font-size:12px" id="stTime">—</div></div>
+  <div class="stat-card"><div class="stat-label">Grade A</div><div class="stat-value c-green" id="stGradeA">—</div></div>
+  <div class="stat-card"><div class="stat-label">Streak</div><div class="stat-value" id="stStreak">—</div></div>
+  <div class="stat-card"><div class="stat-label">Capital</div><div class="stat-value c-cyan" id="stCapital">$10,000</div></div>
+  <div class="stat-card"><div class="stat-label">Growth</div><div class="stat-value" id="stGrowth">—</div></div>
 </div>
 
 <!-- ── PROGRESS ─────────────────────────────────────────────── -->
@@ -455,6 +605,14 @@ tr.clickable { cursor: pointer; }
       <option value="0.8">0.80+</option>
     </select>
   </div>
+  <div class="filter-group"><label>Grade</label>
+    <select id="fGrade" onchange="applyFilters()">
+      <option value="">All</option>
+      <option value="A">Grade A</option>
+      <option value="B">Grade B</option>
+      <option value="C">Grade C</option>
+    </select>
+  </div>
   <input class="search-input" id="fSearch" placeholder="Search symbol…" oninput="applyFilters()" />
   <div class="f-spacer"></div>
   <span class="scan-info" id="scanInfo">
@@ -475,6 +633,9 @@ tr.clickable { cursor: pointer; }
         <th onclick="sortBy('change_24h')">24h % <span class="sort-arrow" id="arr-change_24h"></span></th>
         <th onclick="sortBy('volume_usdt')">Volume <span class="sort-arrow" id="arr-volume_usdt"></span></th>
         <th onclick="sortBy('signal')">Signal <span class="sort-arrow" id="arr-signal"></span></th>
+        <th onclick="sortBy('grade')">Grade <span class="sort-arrow" id="arr-grade"></span></th>
+        <th onclick="sortBy('probability')">Prob% <span class="sort-arrow" id="arr-probability"></span></th>
+        <th onclick="sortBy('expected_value')">EV% <span class="sort-arrow" id="arr-expected_value"></span></th>
         <th onclick="sortBy('score')">Score <span class="sort-arrow" id="arr-score"></span></th>
         <th onclick="sortBy('confluence')">Confluence <span class="sort-arrow" id="arr-confluence"></span></th>
         <th onclick="sortBy('ema_cross')">EMA Cross <span class="sort-arrow" id="arr-ema_cross"></span></th>
@@ -484,7 +645,7 @@ tr.clickable { cursor: pointer; }
         <th>Entry</th><th>Stop</th><th>Target</th>
       </tr></thead>
       <tbody id="tableBody">
-        <tr><td colspan="14">
+        <tr><td colspan="17">
           <div class="empty-state"><div class="icon">📡</div><h3>Connecting to Gate.io…</h3><p>Initial scan will start automatically</p></div>
         </td></tr>
       </tbody>
@@ -536,7 +697,10 @@ tr.clickable { cursor: pointer; }
     </div>
     <div class="modal-body">
       <div class="modal-chart-col">
-        <div id="chartContainer"></div>
+        <div id="chartWrap">
+          <!-- multi-pane charts injected here -->
+        </div>
+        <div class="pos-panel" id="posSizePanel"></div>
         <div class="modal-stats" id="modalStats"></div>
       </div>
       <div class="modal-news-col">
@@ -545,6 +709,73 @@ tr.clickable { cursor: pointer; }
           <div class="news-empty">Loading…</div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── JOURNAL MODAL ─────────────────────────────────────────── -->
+<div class="jnl-overlay" id="jnlOverlay" onclick="handleJnlOverlay(event)">
+  <div class="jnl-modal">
+    <div class="jnl-header">
+      <span class="jnl-title">📓 Trade Journal</span>
+      <span style="font-size:11px;color:var(--muted)" id="jnlSubtitle">Auto-logged signals with Entry / SL / TP</span>
+      <div class="jnl-spacer"></div>
+      <button class="close-btn" onclick="closeJournal()">✕</button>
+    </div>
+    <!-- Summary stats -->
+    <div class="jnl-summary" id="jnlSummary">
+      <div class="jnl-stat"><div class="jnl-stat-lbl">Total</div><div class="jnl-stat-val c-cyan" id="js-total">—</div></div>
+      <div class="jnl-stat"><div class="jnl-stat-lbl">Open</div><div class="jnl-stat-val c-text" id="js-open">—</div></div>
+      <div class="jnl-stat"><div class="jnl-stat-lbl">Closed</div><div class="jnl-stat-val c-text" id="js-closed">—</div></div>
+      <div class="jnl-stat"><div class="jnl-stat-lbl">Win Rate</div><div class="jnl-stat-val c-green" id="js-winrate">—</div></div>
+      <div class="jnl-stat"><div class="jnl-stat-lbl">Wins</div><div class="jnl-stat-val c-green" id="js-wins">—</div></div>
+      <div class="jnl-stat"><div class="jnl-stat-lbl">Losses</div><div class="jnl-stat-val c-red" id="js-losses">—</div></div>
+      <div class="jnl-stat"><div class="jnl-stat-lbl">Total PnL</div><div class="jnl-stat-val" id="js-totalpnl">—</div></div>
+      <div class="jnl-stat"><div class="jnl-stat-lbl">Avg PnL</div><div class="jnl-stat-val" id="js-avgpnl">—</div></div>
+      <div class="jnl-stat"><div class="jnl-stat-lbl">Avg R:R</div><div class="jnl-stat-val c-purple" id="js-avgrr">—</div></div>
+      <div class="jnl-stat"><div class="jnl-stat-lbl">Capital</div><div class="jnl-stat-val c-cyan" id="js-capital">$10,000</div></div>
+      <div class="jnl-stat"><div class="jnl-stat-lbl">Growth</div><div class="jnl-stat-val" id="js-growth">—</div></div>
+      <div class="jnl-stat"><div class="jnl-stat-lbl">Risk/Trade</div><div class="jnl-stat-val c-orange" id="js-riskpct">1.5%</div></div>
+      <div class="jnl-stat"><div class="jnl-stat-lbl">Grade A</div><div class="jnl-stat-val c-green" id="js-gradea">—</div></div>
+      <div class="jnl-stat"><div class="jnl-stat-lbl">Avg EV</div><div class="jnl-stat-val c-purple" id="js-avgev">—</div></div>
+    </div>
+    <!-- Table -->
+    <div class="jnl-table-wrap">
+      <table class="jnl-table">
+        <thead><tr>
+          <th>Date</th>
+          <th>Symbol</th>
+          <th>TF</th>
+          <th>Signal</th>
+          <th>Score</th>
+          <th>Grade</th>
+          <th>Prob%</th>
+          <th>EV%</th>
+          <th>MTF</th>
+          <th>Confluence</th>
+          <th>Entry</th>
+          <th>Stop</th>
+          <th>Target</th>
+          <th>R:R</th>
+          <th>Position</th>
+          <th>RSI</th>
+          <th>ADX</th>
+          <th>Sentiment</th>
+          <th>Status</th>
+          <th>PnL%</th>
+          <th>Outcome</th>
+        </tr></thead>
+        <tbody id="jnlTableBody">
+          <tr><td colspan="20"><div class="jnl-empty">No signals logged yet — run a scan to auto-populate</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="proj-wrap">
+      <div class="proj-title">90-Day Capital Projection (based on current performance)</div>
+      <table class="proj-table">
+        <thead><tr><th>Period</th><th>Est. Trades</th><th>Monthly Return</th><th>Projected Capital</th><th>vs Target $100K</th></tr></thead>
+        <tbody id="projBody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:10px">Log trades to generate projection</td></tr></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -560,6 +791,10 @@ let chartInstance = null, chartSymbol = null, chartTf = '4h';
 let marketNews = [], announcements = [];
 let newsTab = 'news';
 let newsPaneOpen = true;
+let journalEntries = [];
+let journalSummary = {};
+let capitalState   = { capital: 10000, initial: 10000, risk_pct: 1.5, growth_pct: 0, drawdown_pct: 0 };
+let chartInstances = [];
 
 // ═══════════════════════════════════════════════════════════
 //  WEBSOCKET
@@ -582,6 +817,8 @@ function setWsStatus(s) {
 function handleMsg(msg) {
   switch (msg.type) {
     case 'init':
+      if (msg.capital) updateCapitalDisplay(msg.capital);
+      // fall through
     case 'scan_results':
       allResults = msg.data || [];
       if (msg.status) updateStats(msg.status);
@@ -602,11 +839,61 @@ function handleMsg(msg) {
     case 'news_update':
       setMarketNews(msg.news || [], msg.announcements || []);
       break;
+    case 'journal_update':
+      if (msg.summary) updateJournalSummary(msg.summary);
+      if (msg.capital) updateCapitalDisplay(msg.capital);
+      break;
+    case 'capital_update':
+      if (msg.capital) updateCapitalDisplay(msg.capital);
+      break;
     case 'error':
       setScanState(false);
       showToast('Error: ' + msg.message, 'error');
       break;
   }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CAPITAL
+// ═══════════════════════════════════════════════════════════
+function updateCapitalDisplay(cap) {
+  capitalState = cap;
+  const fmt = v => '$' + Math.round(v).toLocaleString('en');
+  const growthCol = cap.growth_pct >= 0 ? 'var(--green)' : 'var(--red)';
+  const growthStr = (cap.growth_pct >= 0 ? '+' : '') + cap.growth_pct.toFixed(2) + '%';
+
+  const stCap   = document.getElementById('stCapital');
+  const stGrow  = document.getElementById('stGrowth');
+  if (stCap)  stCap.textContent  = fmt(cap.capital);
+  if (stGrow) { stGrow.textContent = growthStr; stGrow.style.color = growthCol; }
+  const stStreak = document.getElementById('stStreak');
+  if (stStreak) {
+    if (cap.win_streak > 0) {
+      stStreak.textContent = 'W' + cap.win_streak;
+      stStreak.style.color = 'var(--green)';
+    } else if (cap.loss_streak > 0) {
+      stStreak.textContent = 'L' + cap.loss_streak;
+      stStreak.style.color = 'var(--red)';
+    } else {
+      stStreak.textContent = '—';
+      stStreak.style.color = 'var(--muted)';
+    }
+  }
+
+  const jsCap  = document.getElementById('js-capital');
+  const jsGrow = document.getElementById('js-growth');
+  const jsRisk = document.getElementById('js-riskpct');
+  if (jsCap)  jsCap.textContent  = fmt(cap.capital);
+  if (jsGrow) { jsGrow.textContent = growthStr; jsGrow.style.color = growthCol; }
+  if (jsRisk) jsRisk.textContent = cap.risk_pct + '%';
+}
+
+async function loadCapital() {
+  try {
+    const res = await fetch('/api/capital');
+    const cap = await res.json();
+    updateCapitalDisplay(cap);
+  } catch (e) {}
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -642,6 +929,7 @@ function updateStats(status) {
   document.getElementById('stStrong').textContent  = allResults.filter(r => r.confluence === 'STRONG').length;
   document.getElementById('stConflict').textContent = allResults.filter(r => r.confluence === 'CONFLICT').length;
   document.getElementById('stCross').textContent = allResults.filter(r => r.ema_cross !== 'NONE').length;
+  document.getElementById('stGradeA').textContent = allResults.filter(r => r.grade === 'A').length;
   if (status.last_scan) {
     const d = new Date(status.last_scan);
     document.getElementById('stTime').textContent =
@@ -744,6 +1032,7 @@ function applyFilters() {
   const fCross = document.getElementById('fCross').value;
   const fTrend = document.getElementById('fTrend').value;
   const fScore = parseFloat(document.getElementById('fScore').value) || 0;
+  const fGrade = document.getElementById('fGrade')?.value || '';
   const fSearch = document.getElementById('fSearch').value.trim().toUpperCase();
 
   filtered = allResults.filter(r => {
@@ -752,6 +1041,7 @@ function applyFilters() {
     if (fCross && r.ema_cross !== fCross) return false;
     if (fTrend && r.trend     !== fTrend) return false;
     if (r.score < fScore)                 return false;
+    if (fGrade && r.grade !== fGrade)     return false;
     if (fSearch && !r.symbol.toUpperCase().includes(fSearch)) return false;
     return true;
   });
@@ -807,6 +1097,20 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function gradeBadge(grade) {
+  const cls = {A:'grade-a', B:'grade-b', C:'grade-c'}[grade] || 'grade-c';
+  return `<span class="${cls}">${grade || '?'}</span>`;
+}
+function evCell(ev) {
+  if (ev == null) return '<span class="no-data">—</span>';
+  const cls = ev >= 0 ? 'ev-pos' : 'ev-neg';
+  return `<span class="${cls}">${ev >= 0 ? '+' : ''}${ev.toFixed(2)}%</span>`;
+}
+function probCell(p) {
+  if (p == null) return '<span class="no-data">—</span>';
+  return `<span class="prob-pct">${(p * 100).toFixed(0)}%</span>`;
+}
+
 function sigBadge(sig) {
   const cls  = {BULLISH:'b-bull',BEARISH:'b-bear',NEUTRAL:'b-neut'}[sig]||'b-neut';
   const icon = {BULLISH:'▲',BEARISH:'▼',NEUTRAL:'—'}[sig]||'—';
@@ -853,7 +1157,7 @@ function sentMini(sent) {
 function renderTable() {
   const tbody = document.getElementById('tableBody');
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="14"><div class="empty-state">
+    tbody.innerHTML = `<tr><td colspan="17"><div class="empty-state">
       <div class="icon">${allResults.length===0?'📡':'🔍'}</div>
       <h3>${allResults.length===0?'Scanning market…':'No matches'}</h3>
       <p>${allResults.length===0?'Results will appear shortly':'Adjust your filters'}</p>
@@ -874,6 +1178,9 @@ function renderTable() {
       <td class="chg-cell ${chgCls}">${chgStr}</td>
       <td class="vol-cell">${fmtV(r.volume_usdt)}</td>
       <td>${sigBadge(r.signal)}</td>
+      <td>${gradeBadge(r.grade)}</td>
+      <td>${probCell(r.probability)}</td>
+      <td>${evCell(r.expected_value)}</td>
       <td>${scoreBar(r.score)}</td>
       <td>${confBadge(r.confluence)}</td>
       <td>${r.ema_cross==='BULLISH'?'<span class="badge b-bull">▲ BULL</span>':r.ema_cross==='BEARISH'?'<span class="badge b-bear">▼ BEAR</span>':'<span class="no-data">—</span>'}</td>
@@ -932,7 +1239,9 @@ async function openChart(symbol) {
 
 function closeModal() {
   document.getElementById('modalOverlay').classList.remove('open');
-  if (chartInstance) { chartInstance.remove(); chartInstance = null; }
+  chartInstances.forEach(c => { try { c.remove(); } catch(_) {} });
+  chartInstances = [];
+  chartInstance  = null;
 }
 function handleOverlayClick(e) {
   if (e.target === document.getElementById('modalOverlay')) closeModal();
@@ -944,60 +1253,227 @@ async function setChartTf(tf) {
 }
 
 async function loadChart(symbol, tf) {
-  const container = document.getElementById('chartContainer');
-  if (chartInstance) { chartInstance.remove(); chartInstance = null; }
-  container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted)">Loading…</div>';
+  const wrap = document.getElementById('chartWrap');
+  chartInstances.forEach(c => { try { c.remove(); } catch(_) {} });
+  chartInstances = [];
+  chartInstance  = null;
+  wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted)">Loading…</div>';
 
   const enc = symbol.replace('/', '-');
-  const res = await fetch(`/api/ohlcv/${enc}?timeframe=${tf}&limit=200`);
+  const res = await fetch(`/api/ohlcv/${enc}?timeframe=${tf}&limit=300`);
   const json = await res.json();
 
   if (json.error || !json.data?.length) {
-    container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--red)">Failed to load chart</div>';
+    wrap.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--red)">Failed to load chart</div>';
     return;
   }
-  container.innerHTML = '';
 
-  chartInstance = LightweightCharts.createChart(container, {
-    width: container.clientWidth, height: container.clientHeight || 360,
+  wrap.innerHTML = `
+    <div id="chartMain" style="flex:3;min-height:0"></div>
+    <div id="chartRSI"  class="chart-sub"></div>
+    <div id="chartMACD" class="chart-sub"></div>`;
+
+  const mainEl = document.getElementById('chartMain');
+  const rsiEl  = document.getElementById('chartRSI');
+  const macdEl = document.getElementById('chartMACD');
+
+  const baseOpts = el => ({
+    width: el.clientWidth,
+    height: el.clientHeight || 90,
     layout: { background:{color:'#13161e'}, textColor:'#c9d1e0' },
-    grid: { vertLines:{color:'#1e2330'}, horzLines:{color:'#1e2330'} },
+    grid:   { vertLines:{color:'#1e2330'}, horzLines:{color:'#1e2330'} },
     crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
     rightPriceScale: { borderColor:'#1e2330' },
     timeScale: { borderColor:'#1e2330', timeVisible:true },
   });
 
-  const candleSeries = chartInstance.addCandlestickSeries({
+  const mainChart = LightweightCharts.createChart(mainEl, {
+    ...baseOpts(mainEl),
+    height: mainEl.clientHeight || 280,
+  });
+  const rsiChart  = LightweightCharts.createChart(rsiEl,  {
+    ...baseOpts(rsiEl),
+    timeScale: { ...baseOpts(rsiEl).timeScale, timeVisible: false, visible: false },
+  });
+  const macdChart = LightweightCharts.createChart(macdEl, {
+    ...baseOpts(macdEl),
+    timeScale: { ...baseOpts(macdEl).timeScale, timeVisible: false, visible: false },
+  });
+  chartInstances = [mainChart, rsiChart, macdChart];
+  chartInstance  = mainChart;
+
+  // ── Main: candles + EMAs + volume ─────────────────────────
+  const candleSeries = mainChart.addCandlestickSeries({
     upColor:'#00c853', downColor:'#ff3d5a',
     borderUpColor:'#00c853', borderDownColor:'#ff3d5a',
     wickUpColor:'#00c853', wickDownColor:'#ff3d5a',
   });
-  candleSeries.setData(json.data.map(b => ({time:Math.floor(b.t/1000),open:b.o,high:b.h,low:b.l,close:b.c})));
 
-  const closes = json.data.map(b => b.c);
-  const times  = json.data.map(b => Math.floor(b.t/1000));
-  const toSeries = (arr, col, title) => {
-    const s = chartInstance.addLineSeries({color:col, lineWidth:1.5, title,
-      priceLineVisible:false, lastValueVisible:false});
-    s.setData(arr.map((v,i)=>({time:times[i],value:v})).filter(p=>p.value!=null));
+  const closes  = json.data.map(b => b.c);
+  const times   = json.data.map(b => Math.floor(b.t / 1000));
+  const opens   = json.data.map(b => b.o);
+  const volumes = json.data.map(b => b.v);
+
+  candleSeries.setData(json.data.map(b => ({
+    time: Math.floor(b.t / 1000), open: b.o, high: b.h, low: b.l, close: b.c,
+  })));
+
+  const toLine = (chart, arr, col, title, lw = 1.5) => {
+    const s = chart.addLineSeries({ color: col, lineWidth: lw, title,
+      priceLineVisible: false, lastValueVisible: true });
+    s.setData(arr.map((v, i) => ({ time: times[i], value: v })).filter(p => p.value != null));
+    return s;
   };
-  toSeries(calcEMA(closes, 9),  '#00d4c8', 'EMA9');
-  toSeries(calcEMA(closes, 21), '#a78bfa', 'EMA21');
-  chartInstance.timeScale().fitContent();
 
+  toLine(mainChart, calcEMA(closes, 9),   '#00d4c8', 'EMA9');
+  toLine(mainChart, calcEMA(closes, 21),  '#a78bfa', 'EMA21');
+  toLine(mainChart, calcEMA(closes, 200), '#ff9f43', 'EMA200', 1);
+
+  // Volume as histogram (overlaid, semi-transparent)
+  const volSeries = mainChart.addHistogramSeries({
+    priceScaleId: 'vol',
+    priceLineVisible: false, lastValueVisible: false,
+  });
+  mainChart.priceScale('vol').applyOptions({
+    scaleMargins: { top: 0.8, bottom: 0 },
+  });
+  volSeries.setData(volumes.map((v, i) => ({
+    time: times[i],
+    value: v,
+    color: closes[i] >= opens[i] ? 'rgba(0,200,83,0.25)' : 'rgba(255,61,90,0.25)',
+  })));
+
+  // ── Entry / Stop / Target price lines ─────────────────────
+  const opp = allResults.find(r => r.symbol === symbol);
+  if (opp) {
+    if (opp.entry)  candleSeries.createPriceLine({ price: opp.entry,  color: '#00d4c8', lineWidth: 2, lineStyle: 2, axisLabelVisible: true, title: '⚡ Entry'  });
+    if (opp.stop)   candleSeries.createPriceLine({ price: opp.stop,   color: '#ff3d5a', lineWidth: 2, lineStyle: 2, axisLabelVisible: true, title: '🛑 Stop'   });
+    if (opp.target) candleSeries.createPriceLine({ price: opp.target, color: '#00c853', lineWidth: 2, lineStyle: 2, axisLabelVisible: true, title: '🎯 Target' });
+  }
+
+  // ── RSI pane ───────────────────────────────────────────────
+  const rsiVals  = calcRSI(closes, 14);
+  const rsiSeries = rsiChart.addLineSeries({ color: '#ffd700', lineWidth: 1.5,
+    priceScaleId: 'right', title: 'RSI' });
+  rsiSeries.setData(rsiVals.map((v, i) => ({ time: times[i], value: v })).filter(p => p.value != null));
+  rsiSeries.createPriceLine({ price: 70, color: 'rgba(255,61,90,0.5)',   lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '70' });
+  rsiSeries.createPriceLine({ price: 30, color: 'rgba(0,200,83,0.5)',    lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '30' });
+  rsiSeries.createPriceLine({ price: 50, color: 'rgba(90,100,128,0.4)', lineWidth: 1, lineStyle: 3 });
+
+  // ── MACD pane ──────────────────────────────────────────────
+  const macdData = calcMACD(closes);
+  const macdHist = macdChart.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false });
+  macdHist.setData(macdData.hist.map((v, i) => ({
+    time: times[i], value: v,
+    color: v == null ? 'transparent' : (v >= 0 ? 'rgba(0,200,83,0.7)' : 'rgba(255,61,90,0.7)'),
+  })).filter(p => p.value != null));
+  toLine(macdChart, macdData.macd,   '#00d4c8', 'MACD',   1.5);
+  toLine(macdChart, macdData.signal, '#ff9f43', 'Signal', 1);
+
+  // ── Position sizing panel ──────────────────────────────────
+  if (opp?.entry && opp?.stop) {
+    const cap = capitalState;
+    const grade = opp.grade || 'B';
+    const gradeRisk = (cap.dynamic_risk && cap.dynamic_risk[grade]) ? cap.dynamic_risk[grade] : cap.risk_pct;
+    const riskAmt  = cap.capital * gradeRisk / 100;
+    const rpu      = Math.abs(opp.entry - opp.stop);
+    const qty      = rpu > 0 ? riskAmt / rpu : 0;
+    const posVal   = qty * opp.entry;
+    const posPct   = posVal / cap.capital * 100;
+    const growCol  = cap.growth_pct >= 0 ? 'var(--green)' : 'var(--red)';
+    const mtfIcon  = opp.mtf_aligned ? '<span class="mtf-ok">MTF ✓</span>' : '<span class="mtf-no">MTF ✗</span>';
+    document.getElementById('posSizePanel').innerHTML = `
+      <span class="pp-item pp-cap">💰 <b>$${Math.round(cap.capital).toLocaleString()}</b></span>
+      <span class="pp-item pp-growth"><b style="color:${growCol}">${cap.growth_pct >= 0 ? '+' : ''}${cap.growth_pct.toFixed(2)}%</b></span>
+      <span class="pp-item">${gradeBadge(grade)} ${probCell(opp.probability)}</span>
+      <span class="pp-item">${mtfIcon}</span>
+      <span class="pp-item">Daily: <b>${opp.daily_trend || '—'}</b></span>
+      <span class="pp-item pp-risk">Risk <b>${gradeRisk}%</b> = <b>$${riskAmt.toFixed(0)}</b></span>
+      <span class="pp-item pp-pos">Pos <b>$${posVal.toFixed(0)}</b> · <b>${qty.toFixed(4)}</b> qty</span>
+      <span class="pp-item">EV <b style="color:${(opp.expected_value??0)>=0?'var(--green)':'var(--red)'}">${opp.expected_value != null ? (opp.expected_value >= 0 ? '+' : '') + opp.expected_value.toFixed(2) + '%' : '—'}</b>/trade</span>
+      <span class="pp-item">R:R <b style="color:var(--purple)">${opp.risk_reward ? opp.risk_reward + ':1' : '—'}</b></span>`;
+  } else {
+    const cap = capitalState;
+    const growCol = cap.growth_pct >= 0 ? 'var(--green)' : 'var(--red)';
+    document.getElementById('posSizePanel').innerHTML = `
+      <span class="pp-item pp-cap">💰 <b>$${Math.round(cap.capital).toLocaleString()}</b></span>
+      <span class="pp-item pp-growth"><b style="color:${growCol}">${cap.growth_pct >= 0 ? '+' : ''}${cap.growth_pct.toFixed(2)}%</b></span>
+      <span class="pp-item pp-risk">Risk per trade: A=<b>${cap.dynamic_risk?.A??2.5}%</b> · B=<b>${cap.dynamic_risk?.B??1.5}%</b> · C=<b>${cap.dynamic_risk?.C??0.75}%</b></span>
+      <span class="pp-item" style="color:var(--muted)">No entry/stop on this signal</span>`;
+  }
+
+  // ── Sync time scales ───────────────────────────────────────
+  let _syncing = false;
+  const syncRange = (srcIdx, range) => {
+    if (_syncing || !range) return;
+    _syncing = true;
+    chartInstances.forEach((c, i) => {
+      if (i !== srcIdx) c.timeScale().setVisibleLogicalRange(range);
+    });
+    _syncing = false;
+  };
+  chartInstances.forEach((c, i) => {
+    c.timeScale().subscribeVisibleLogicalRangeChange(r => syncRange(i, r));
+  });
+
+  mainChart.timeScale().fitContent();
+
+  // ── Resize all 3 charts ─────────────────────────────────────
   new ResizeObserver(() => {
-    if (chartInstance) chartInstance.resize(container.clientWidth, container.clientHeight);
-  }).observe(container);
+    [[mainChart, mainEl], [rsiChart, rsiEl], [macdChart, macdEl]].forEach(([c, el]) => {
+      if (c && el) c.resize(el.clientWidth, el.clientHeight);
+    });
+  }).observe(wrap);
 }
 
 function calcEMA(values, p) {
-  const k = 2/(p+1), r = new Array(values.length).fill(null);
-  let s = 0, c = 0;
+  if (!p || p <= 0) return new Array(values.length).fill(null);
+  const k = 2 / (p + 1);
+  const r = new Array(values.length).fill(null);
+  let sum = 0, cnt = 0, prev = null;
   for (let i = 0; i < values.length; i++) {
-    if (c < p) { s += values[i]; if (++c === p) r[i] = s/p; }
-    else r[i] = values[i]*k + r[i-1]*(1-k);
+    const v = values[i];
+    if (v == null || isNaN(v)) continue;
+    if (prev === null) {
+      sum += v; cnt++;
+      if (cnt === p) { prev = sum / p; r[i] = prev; }
+    } else {
+      prev = v * k + prev * (1 - k);
+      r[i] = prev;
+    }
   }
   return r;
+}
+
+function calcRSI(prices, period = 14) {
+  const r = new Array(prices.length).fill(null);
+  if (prices.length < period + 1) return r;
+  let avgGain = 0, avgLoss = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = prices[i] - prices[i - 1];
+    if (d > 0) avgGain += d; else avgLoss -= d;
+  }
+  avgGain /= period; avgLoss /= period;
+  r[period] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+  for (let i = period + 1; i < prices.length; i++) {
+    const d = prices[i] - prices[i - 1];
+    const g = d > 0 ? d : 0, l = d < 0 ? -d : 0;
+    avgGain = (avgGain * (period - 1) + g) / period;
+    avgLoss = (avgLoss * (period - 1) + l) / period;
+    r[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+  }
+  return r;
+}
+
+function calcMACD(prices, fast = 12, slow = 26, sig = 9) {
+  const emaFast = calcEMA(prices, fast);
+  const emaSlow = calcEMA(prices, slow);
+  const macdLine = emaFast.map((v, i) =>
+    v != null && emaSlow[i] != null ? v - emaSlow[i] : null);
+  const signalLine = calcEMA(macdLine, sig);
+  const hist = macdLine.map((v, i) =>
+    v != null && signalLine[i] != null ? v - signalLine[i] : null);
+  return { macd: macdLine, signal: signalLine, hist };
 }
 
 // ── Modal news panel ──────────────────────────────────────
@@ -1059,6 +1535,212 @@ async function loadModalNews(symbol, opp) {
 }
 
 // ═══════════════════════════════════════════════════════════
+//  JOURNAL
+// ═══════════════════════════════════════════════════════════
+async function openJournal() {
+  document.getElementById('jnlOverlay').classList.add('open');
+  await refreshJournal();
+}
+function closeJournal() {
+  document.getElementById('jnlOverlay').classList.remove('open');
+}
+function handleJnlOverlay(e) {
+  if (e.target === document.getElementById('jnlOverlay')) closeJournal();
+}
+
+async function refreshJournal() {
+  const res  = await fetch('/api/journal');
+  const data = await res.json();
+  journalEntries = data.entries || [];
+  journalSummary = data.summary || {};
+  updateJournalSummary(journalSummary);
+  renderJournalTable();
+  renderProjection();
+}
+
+function renderProjection() {
+  const tbody = document.getElementById('projBody');
+  if (!tbody) return;
+  const cap = capitalState;
+  const entries = journalEntries;
+
+  // Avg EV from recent entries that have expected_value
+  const withEV = entries.filter(e => e.expected_value != null).slice(0, 20);
+  const avgEV  = withEV.length
+    ? withEV.reduce((s, e) => s + e.expected_value, 0) / withEV.length
+    : (journalSummary.avg_ev || 1.5);
+
+  // Estimate trades/month from entry dates
+  let tradesPerMonth = 8;
+  if (entries.length >= 2) {
+    const oldest = new Date(entries[entries.length - 1].logged_at);
+    const newest = new Date(entries[0].logged_at);
+    const days   = Math.max(1, (newest - oldest) / 86400000);
+    tradesPerMonth = Math.max(1, Math.round(entries.length / days * 30));
+  }
+
+  const monthlyRet = avgEV * tradesPerMonth;
+  const current    = cap.capital;
+  const target     = 100000;
+
+  const rows = [30, 60, 90].map(days => {
+    const months    = days / 30;
+    const projected = current * Math.pow(1 + monthlyRet / 100, months);
+    const pct_to_target = ((projected / target) * 100).toFixed(1);
+    const retColor  = monthlyRet >= 0 ? 'var(--green)' : 'var(--red)';
+    return `<tr>
+      <td>${days}d</td>
+      <td>${Math.round(tradesPerMonth * months)} trades</td>
+      <td class="proj-ret" style="color:${retColor}">${monthlyRet >= 0 ? '+' : ''}${monthlyRet.toFixed(1)}%/mo</td>
+      <td class="proj-cap">$${Math.round(projected).toLocaleString()}</td>
+      <td style="color:var(--muted);font-size:10.5px">${pct_to_target}% of target</td>
+    </tr>`;
+  });
+  tbody.innerHTML = rows.join('');
+}
+
+function updateJournalSummary(s) {
+  journalSummary = s;
+  const openCount = s.open ?? 0;
+  // Update badge on button
+  const badge = document.getElementById('jnlOpenBadge');
+  if (openCount > 0) {
+    badge.textContent = openCount;
+    badge.style.display = 'inline';
+  } else {
+    badge.style.display = 'none';
+  }
+  // Summary row
+  const g = id => document.getElementById(id);
+  if (!g('js-total')) return;
+  g('js-total').textContent   = s.total ?? '—';
+  g('js-open').textContent    = s.open  ?? '—';
+  g('js-closed').textContent  = s.closed ?? '—';
+  g('js-wins').textContent    = s.wins  ?? '—';
+  g('js-losses').textContent  = s.losses ?? '—';
+  g('js-winrate').textContent = s.closed > 0 ? s.win_rate + '%' : '—';
+
+  const tp = s.total_pnl ?? 0;
+  g('js-totalpnl').textContent = tp !== 0 ? (tp > 0 ? '+' : '') + tp + '%' : '—';
+  g('js-totalpnl').style.color = tp > 0 ? 'var(--green)' : tp < 0 ? 'var(--red)' : '';
+
+  const ap = s.avg_pnl ?? 0;
+  g('js-avgpnl').textContent = ap !== 0 ? (ap > 0 ? '+' : '') + ap + '%' : '—';
+  g('js-avgpnl').style.color = ap > 0 ? 'var(--green)' : ap < 0 ? 'var(--red)' : '';
+
+  g('js-avgrr').textContent = s.avg_rr > 0 ? s.avg_rr + ':1' : '—';
+  const gaEl = g('js-gradea');
+  const avEl = g('js-avgev');
+  if (gaEl) gaEl.textContent = s.grade_a ?? '—';
+  if (avEl && s.avg_ev != null) {
+    avEl.textContent = (s.avg_ev >= 0 ? '+' : '') + s.avg_ev.toFixed(2) + '%';
+    avEl.style.color = s.avg_ev >= 0 ? 'var(--green)' : 'var(--red)';
+  }
+}
+
+function renderJournalTable() {
+  const tbody = document.getElementById('jnlTableBody');
+  if (!journalEntries.length) {
+    tbody.innerHTML = '<tr><td colspan="20"><div class="jnl-empty">No signals logged yet — run a scan to auto-populate</div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = journalEntries.map(e => {
+    const d = new Date(e.logged_at);
+    const dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+    const sigCls  = {BULLISH:'b-bull', BEARISH:'b-bear', NEUTRAL:'b-neut'}[e.signal] || 'b-neut';
+    const sigIcon = {BULLISH:'▲', BEARISH:'▼', NEUTRAL:'—'}[e.signal] || '—';
+
+    const cfCfg = {
+      STRONG:   ['cf-strong',  '🔥'],
+      ALIGNED:  ['cf-aligned', '✓'],
+      CONFLICT: ['cf-conflict','⚡'],
+      MIXED:    ['cf-mixed',   '~'],
+    }[e.confluence] || ['cf-mixed', '~'];
+
+    const stCls = {OPEN:'st-open', WIN:'st-win', LOSS:'st-loss', CANCELLED:'st-canc'}[e.status] || 'st-open';
+    const stIcon = {OPEN:'●', WIN:'✓', LOSS:'✗', CANCELLED:'○'}[e.status] || '●';
+
+    const pnl = e.pnl_pct;
+    const pnlStr = pnl != null
+      ? `<span style="color:${pnl>=0?'var(--green)':'var(--red)'};font-weight:700">${pnl>=0?'+':''}${pnl}%</span>`
+      : '<span class="no-data">—</span>';
+
+    const sentStr = e.sentiment_score != null
+      ? `<span style="color:${e.sentiment_score>0.05?'var(--green)':e.sentiment_score<-0.05?'var(--red)':'var(--muted)'}">${e.sentiment_score>0?'+':''}${(e.sentiment_score*100).toFixed(0)}%</span>`
+      : '<span class="no-data">—</span>';
+
+    // Outcome actions (only for OPEN)
+    const actions = e.status === 'OPEN' ? `
+      <div class="outcome-actions">
+        <input class="exit-input" id="ep-${e.id}" type="number" placeholder="Exit $" step="any" />
+        <button class="act-btn act-win"  onclick="markOutcome('${e.id}','WIN')">✓W</button>
+        <button class="act-btn act-loss" onclick="markOutcome('${e.id}','LOSS')">✗L</button>
+        <button class="act-btn act-canc" onclick="markOutcome('${e.id}','CANCELLED')">○</button>
+      </div>` : `<span class="no-data" style="font-size:10px">${e.exit_price ? fmtP(e.exit_price) : '—'}</span>`;
+
+    return `<tr>
+      <td style="color:var(--muted);font-size:10px">${dateStr}</td>
+      <td style="cursor:pointer;font-weight:600;color:var(--cyan)" onclick="openChartFromJournal('${e.symbol}')">${e.symbol}</td>
+      <td style="color:var(--muted)">${e.timeframe || '4h'}</td>
+      <td><span class="badge ${sigCls}">${sigIcon} ${e.signal}</span></td>
+      <td><span style="font-weight:700">${e.score ? (e.score*100).toFixed(0)+'%' : '—'}</span></td>
+      <td>${gradeBadge(e.grade)}</td>
+      <td>${probCell(e.probability)}</td>
+      <td>${evCell(e.expected_value)}</td>
+      <td>${e.mtf_aligned ? '<span class="mtf-ok">✓</span>' : '<span class="mtf-no">✗</span>'}</td>
+      <td><span class="cf-badge ${cfCfg[0]}">${cfCfg[1]} ${e.confluence}</span></td>
+      <td class="entry-c">${fmtP(e.entry)}</td>
+      <td class="stop-c">${fmtP(e.stop)}</td>
+      <td class="tgt-c">${fmtP(e.target)}</td>
+      <td style="color:var(--purple);font-weight:600">${e.risk_reward ? e.risk_reward+':1' : '—'}</td>
+      <td style="color:var(--orange);font-size:10.5px">${e.position_value ? '$'+e.position_value.toLocaleString('en',{maximumFractionDigits:0}) : '<span class="no-data">—</span>'}</td>
+      <td class="${e.rsi>=70?'rsi-ob':e.rsi<=30?'rsi-os':''}">${e.rsi?.toFixed(1)??'—'}</td>
+      <td class="${e.adx>=25?'adx-hi':''}">${e.adx?.toFixed(1)??'—'}</td>
+      <td>${sentStr}</td>
+      <td><span class="status-badge ${stCls}">${stIcon} ${e.status}</span></td>
+      <td>${pnlStr}</td>
+      <td>${actions}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function markOutcome(entryId, status) {
+  const exitInput = document.getElementById('ep-' + entryId);
+  const exitPrice = exitInput ? parseFloat(exitInput.value) || null : null;
+
+  const res = await fetch(`/api/journal/${entryId}?status=${status}${exitPrice ? '&exit_price='+exitPrice : ''}`, {method:'PUT'});
+  const data = await res.json();
+  if (data.ok) {
+    showToast(`Marked as ${status}`, status === 'WIN' ? 'info' : 'error');
+    await refreshJournal();
+  } else {
+    showToast('Update failed', 'error');
+  }
+}
+
+async function openChartFromJournal(symbol) {
+  closeJournal();
+  // Find in allResults or create a minimal opp object
+  const opp = allResults.find(r => r.symbol === symbol);
+  const jEntry = journalEntries.find(e => e.symbol === symbol);
+  if (opp) {
+    await openChart(symbol);
+  } else if (jEntry) {
+    // Build a minimal opp from journal entry for chart lines
+    const fakeOpp = {
+      symbol, signal: jEntry.signal, score: jEntry.score,
+      confluence: jEntry.confluence, trend: jEntry.trend,
+      entry: jEntry.entry, stop: jEntry.stop, target: jEntry.target,
+      rsi: jEntry.rsi, adx: jEntry.adx,
+    };
+    allResults.push(fakeOpp);
+    await openChart(symbol);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
 //  TOAST
 // ═══════════════════════════════════════════════════════════
 function showToast(msg, type='info') {
@@ -1073,9 +1755,10 @@ function showToast(msg, type='info') {
 //  KEYBOARD
 // ═══════════════════════════════════════════════════════════
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Escape') { closeModal(); closeJournal(); }
   if (e.key === 'r' && document.activeElement.tagName !== 'INPUT') triggerScan();
   if (e.key === 'n' && document.activeElement.tagName !== 'INPUT') toggleNews();
+  if (e.key === 'j' && document.activeElement.tagName !== 'INPUT') openJournal();
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -1083,6 +1766,12 @@ document.addEventListener('keydown', e => {
 // ═══════════════════════════════════════════════════════════
 updateSortArrows();
 connectWS();
+// Load journal summary on startup (update badge count)
+fetch('/api/journal').then(r => r.json()).then(d => {
+  if (d.summary) updateJournalSummary(d.summary);
+}).catch(() => {});
+// Load capital state
+loadCapital();
 </script>
 </body>
 </html>
