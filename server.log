@@ -1,0 +1,40 @@
+INFO:     Started server process [27748]
+INFO:     Waiting for application startup.
+2026-03-28 14:39:25,794  INFO      scanner  Scanner connected to Gate.io
+2026-03-28 14:39:30,131  INFO      server  Initial news: 20 items
+2026-03-28 14:39:30,132  INFO      scanner  Scan start  tf=4h  max_pairs=80
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2026-03-28 14:39:30,572  INFO      scanner    80 eligible USDT pairs
+INFO:     127.0.0.1:62290 - "GET /api/news HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50940 - "WebSocket /ws" [accepted]
+2026-03-28 14:39:32,285  INFO      server  WS connected (1 clients)
+INFO:     connection open
+2026-03-28 14:39:37,038  INFO      scanner    Scan done: 77/80 pairs
+2026-03-28 14:39:37,041  INFO      server  Fetching sentiment for 25 coins…
+2026-03-28 14:39:38,756  WARNING   news  Sentiment fetch failed for XRP3S: 'NoneType' object has no attribute 'get'
+2026-03-28 14:39:39,238  WARNING   news  Sentiment fetch failed for XPL: 'NoneType' object has no attribute 'get'
+2026-03-28 14:39:39,272  WARNING   news  Sentiment fetch failed for BTC5L: 'NoneType' object has no attribute 'get'
+2026-03-28 14:39:39,294  WARNING   news  Sentiment fetch failed for XRP5L: 'NoneType' object has no attribute 'get'
+2026-03-28 14:39:40,251  WARNING   news  Sentiment fetch failed for DOGE5L: 'NoneType' object has no attribute 'get'
+2026-03-28 14:39:41,272  INFO      server  Sentiment enrichment done
+2026-03-28 14:39:41,279  INFO      server  Broadcast 77 enriched results
+INFO:     127.0.0.1:60425 - "GET /api/sentiment/ETH HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60427 - "GET /api/results HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53520 - "GET /api/ohlcv/ON-USDT?timeframe=4h&limit=200 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55347 - "GET /api/news/ON HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62002 - "GET /api/ohlcv/ON-USDT?timeframe=1d&limit=200 HTTP/1.1" 200 OK
+2026-03-28 14:42:33,000  INFO      server  News refreshed: 20 items
+2026-03-28 14:44:30,125  INFO      server  Auto-scan triggered
+2026-03-28 14:44:30,126  INFO      scanner  Scan start  tf=4h  max_pairs=80
+2026-03-28 14:44:32,958  INFO      scanner    80 eligible USDT pairs
+2026-03-28 14:44:40,567  INFO      scanner    Scan done: 77/80 pairs
+2026-03-28 14:44:40,568  INFO      server  Fetching sentiment for 25 coins…
+2026-03-28 14:44:42,283  WARNING   news  Sentiment fetch failed for XPL: 'NoneType' object has no attribute 'get'
+2026-03-28 14:44:42,311  WARNING   news  Sentiment fetch failed for XRP3S: 'NoneType' object has no attribute 'get'
+2026-03-28 14:44:42,732  WARNING   news  Sentiment fetch failed for BTC5L: 'NoneType' object has no attribute 'get'
+2026-03-28 14:44:42,804  WARNING   news  Sentiment fetch failed for XRP5L: 'NoneType' object has no attribute 'get'
+2026-03-28 14:44:43,325  WARNING   news  Sentiment fetch failed for DOGE5L: 'NoneType' object has no attribute 'get'
+2026-03-28 14:44:44,334  INFO      server  Sentiment enrichment done
+2026-03-28 14:44:44,342  INFO      server  Broadcast 77 enriched results
+2026-03-28 14:45:35,870  INFO      server  News refreshed: 20 items
