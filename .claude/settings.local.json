@@ -22,7 +22,10 @@
       "Bash(netstat -ano)",
       "Bash(python:*)",
       "Bash(PYTHONIOENCODING=utf-8 python << 'EOF':*)",
-      "Bash(cmd //c \"taskkill /F /T /PID 26816\")"
+      "Bash(cmd //c \"taskkill /F /T /PID 26816\")",
+      "Bash(pip show:*)",
+      "Bash(ls /c/Users/arrif/OneDrive/Desktop/crypto_bot/*.py)",
+      "Bash(grep \"\\\\.py$\")"
     ]
   }
 }

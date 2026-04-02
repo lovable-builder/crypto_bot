@@ -58,6 +58,16 @@ class Opportunity:
     expected_value: float = 0.0
     mtf_aligned: bool  = False
     daily_trend: str   = "SIDEWAYS"
+    market_type: str   = "spot"  # "spot" | "futures"
+    leverage: int      = 1
+    funding_rate: Optional[float] = None  # % per 8h, futures only
+    # Breakout pre-filter fields
+    breakout_score:     float = 0.0
+    breakout_potential: str   = "LOW"   # "HIGH" | "MEDIUM" | "LOW"
+    bb_squeeze:         bool  = False
+    volume_buildup:     bool  = False
+    near_resistance_pct: Optional[float] = None
+    swing_high_near:    Optional[float] = None
 
     def to_dict(self) -> dict:
         def safe(v, d=2):
@@ -84,6 +94,15 @@ class Opportunity:
             "expected_value": round(self.expected_value, 3),
             "mtf_aligned":    self.mtf_aligned,
             "daily_trend":    self.daily_trend,
+            "market_type":    self.market_type,
+            "leverage":       self.leverage,
+            "funding_rate":   round(self.funding_rate * 100, 4) if self.funding_rate is not None else None,
+            "breakout_score":      round(float(self.breakout_score), 3),
+            "breakout_potential":  self.breakout_potential,
+            "bb_squeeze":          bool(self.bb_squeeze),
+            "volume_buildup":      bool(self.volume_buildup),
+            "near_resistance_pct": safe(self.near_resistance_pct, 2),
+            "swing_high_near":     safe(self.swing_high_near, 6),
         }
 
 
@@ -106,6 +125,7 @@ class MarketScanner:
         self.min_volume_usdt = min_volume_usdt
         self._pool = ThreadPoolExecutor(max_workers=workers)
         self._exchange = None
+        self._futures_exchange = None
         self._strategy = EMACrossoverStrategy(EMAStrategyConfig())
         self._connected = False
         self._daily_cache: Dict[str, tuple] = {}   # symbol → (ts, raw_daily)
@@ -126,39 +146,136 @@ class MarketScanner:
             "options": {"defaultType": "spot"},
         })
         await self._run(self._exchange.load_markets)
+        # Futures (perpetual swaps) — second exchange instance
+        try:
+            self._futures_exchange = ccxt.gateio({
+                "enableRateLimit": True,
+                "options": {"defaultType": "swap"},
+            })
+            await self._run(self._futures_exchange.load_markets)
+            logger.info("Scanner connected to Gate.io futures (swap)")
+        except Exception as e:
+            logger.warning(f"Futures exchange init failed: {e} — futures scanning disabled")
+            self._futures_exchange = None
         self._connected = True
-        logger.info("Scanner connected to Gate.io")
+        logger.info("Scanner connected to Gate.io spot")
 
     def disconnect(self):
         self._pool.shutdown(wait=False)
         self._connected = False
 
-    # ── market selection ───────────────────────────────────────
+    async def fetch_current_prices(self, symbols: List[str],
+                                    market_type: str = "spot") -> Dict[str, float]:
+        """Fetch last price for each symbol. Returns {symbol: price}."""
+        exchange = self._futures_exchange if market_type == "futures" else self._exchange
+        if exchange is None:
+            return {}
+        def _fetch_sync():
+            prices = {}
+            try:
+                # Batch fetch — more reliable than individual calls, works for futures symbols
+                tickers = exchange.fetch_tickers(symbols)
+                for sym, t in tickers.items():
+                    p = t.get("last") or t.get("close")
+                    if p:
+                        prices[sym] = float(p)
+            except Exception:
+                # Fallback: individual fetches
+                for sym in symbols:
+                    try:
+                        t = exchange.fetch_ticker(sym)
+                        p = t.get("last") or t.get("close")
+                        if p:
+                            prices[sym] = float(p)
+                    except Exception:
+                        pass
+            return prices
+        return await self._run(_fetch_sync)
 
-    async def fetch_top_markets(self, limit: int = 80) -> List[Dict]:
-        """
-        One API call → all tickers.
-        Filters to USDT spot pairs with ≥ min_volume_usdt 24h volume.
-        Returns top `limit` by volume.
-        """
-        try:
-            tickers = await self._run(self._exchange.fetch_tickers)
-        except Exception as e:
-            logger.error(f"fetch_tickers failed: {e}")
+    async def scan_futures(
+        self,
+        max_pairs: int = 50,
+        progress_cb: Optional[ProgressCallback] = None,
+    ) -> List[Opportunity]:
+        """Scan top Gate.io perpetual futures markets."""
+        if not self._connected:
+            await self.connect()
+        if self._futures_exchange is None:
+            logger.warning("Futures exchange not available")
             return []
 
+        logger.info(f"Futures scan start  tf={self.timeframe}  max_pairs={max_pairs}")
+        markets = await self.fetch_top_markets(limit=max_pairs, market_type="futures")
+        total = len(markets)
+        logger.info(f"  {total} eligible futures pairs")
+
+        results: List[Opportunity] = []
+        batch_size = 8
+
+        for i in range(0, total, batch_size):
+            batch = markets[i: i + batch_size]
+            batch_out = await asyncio.gather(
+                *[self._analyze(m) for m in batch],
+                return_exceptions=True,
+            )
+            for r in batch_out:
+                if isinstance(r, Opportunity):
+                    results.append(r)
+            if progress_cb:
+                await progress_cb(min(i + batch_size, total), total)
+
+        results.sort(key=lambda x: x.score, reverse=True)
+        logger.info(f"  Futures scan done: {len(results)}/{total} pairs")
+        return results
+
+    # ── market selection ───────────────────────────────────────
+
+    async def fetch_top_markets(self, limit: int = 80,
+                                market_type: str = "spot") -> List[Dict]:
+        """
+        One API call → all tickers.
+        For spot: filters USDT pairs. For futures: filters USDT-margined perps.
+        Returns top `limit` by volume.
+        """
+        exchange = self._futures_exchange if market_type == "futures" else self._exchange
+        if exchange is None:
+            return []
+        try:
+            tickers = await self._run(exchange.fetch_tickers)
+        except Exception as e:
+            logger.error(f"fetch_tickers ({market_type}) failed: {e}")
+            return []
+
+        # Stablecoins and pegged assets — price is near 1.0 so stop distances are
+        # micro-fractions, causing position sizing to blow up to 100x+ capital.
+        _STABLECOIN_BASES = {
+            "USDC", "BUSD", "TUSD", "DAI", "FDUSD", "USDP", "GUSD", "LUSD",
+            "FRAX", "USDD", "CRVUSD", "PYUSD", "USDE", "USDB", "EURC", "EURT",
+        }
         markets = []
         for symbol, t in tickers.items():
-            if not symbol.endswith("/USDT"):
+            if market_type == "futures":
+                # Gate.io perps: BTC/USDT:USDT
+                if not symbol.endswith("/USDT:USDT"):
+                    continue
+            else:
+                if not symbol.endswith("/USDT"):
+                    continue
+            # Skip stablecoin/pegged pairs (base token is itself a stable)
+            base = symbol.split("/")[0]
+            if base in _STABLECOIN_BASES:
                 continue
             vol = t.get("quoteVolume") or 0
             if vol < self.min_volume_usdt:
                 continue
+            funding = t.get("fundingRate")
             markets.append({
-                "symbol":      symbol,
-                "price":       t.get("last") or 0,
-                "change_24h":  t.get("percentage") or 0,
-                "volume_usdt": vol,
+                "symbol":       symbol,
+                "price":        t.get("last") or 0,
+                "change_24h":   t.get("percentage") or 0,
+                "volume_usdt":  vol,
+                "market_type":  market_type,
+                "funding_rate": funding,
             })
 
         markets.sort(key=lambda x: x["volume_usdt"], reverse=True)
@@ -172,8 +289,13 @@ class MarketScanner:
     def _analyze_sync(self, market: Dict) -> Optional[Opportunity]:
         """CPU + blocking IO work — runs inside the thread pool."""
         symbol = market["symbol"]
+        market_type = market.get("market_type", "spot")
+        funding_rate = market.get("funding_rate")
+        exchange = self._futures_exchange if market_type == "futures" else self._exchange
+        if exchange is None:
+            return None
         try:
-            raw = self._exchange.fetch_ohlcv(symbol, self.timeframe, limit=300)
+            raw = exchange.fetch_ohlcv(symbol, self.timeframe, limit=300)
             if len(raw) < 220:
                 return None
 
@@ -192,7 +314,7 @@ class MarketScanner:
                 raw_daily = cached[1]
             else:
                 try:
-                    raw_daily = self._exchange.fetch_ohlcv(symbol, "1d", limit=300)
+                    raw_daily = exchange.fetch_ohlcv(symbol, "1d", limit=300)
                     self._daily_cache[symbol] = (now_ts, raw_daily)
                 except Exception:
                     raw_daily = []
@@ -324,6 +446,8 @@ class MarketScanner:
                 rr = 2.0
             ev = prob_engine.expected_value_pct(probability, rr, grade_risk)
 
+            import capital as _cap
+            lev = _cap.get_leverage(grade, market_type)
             return Opportunity(
                 symbol=symbol,
                 price=market["price"],
@@ -345,6 +469,24 @@ class MarketScanner:
                 expected_value=ev,
                 mtf_aligned=mtf_aligned,
                 daily_trend=daily_trend,
+                market_type=market_type,
+                leverage=lev,
+                funding_rate=funding_rate,
+                breakout_score=snap.breakout_score,
+                breakout_potential=(
+                    "HIGH" if snap.breakout_score > 0.60 else
+                    "MEDIUM" if snap.breakout_score > 0.35 else "LOW"
+                ),
+                bb_squeeze=snap.bb_squeeze,
+                volume_buildup=snap.volume_buildup,
+                near_resistance_pct=(
+                    snap.near_resistance_pct
+                    if not _isnan(snap.near_resistance_pct) else None
+                ),
+                swing_high_near=(
+                    snap.swing_high_near
+                    if not _isnan(snap.swing_high_near) else None
+                ),
             )
 
         except Exception as e:
@@ -369,7 +511,7 @@ class MarketScanner:
             await self.connect()
 
         logger.info(f"Scan start  tf={self.timeframe}  max_pairs={max_pairs}")
-        markets = await self.fetch_top_markets(limit=max_pairs)
+        markets = await self.fetch_top_markets(limit=max_pairs, market_type="spot")
         total = len(markets)
         logger.info(f"  {total} eligible USDT pairs")
 

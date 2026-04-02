@@ -34,16 +34,28 @@ def _make_entry(opp: dict) -> dict:
         rr = round(reward / risk, 2) if risk > 0 else None
 
     # Grade-based dynamic position sizing
+    # Respect dynamic_risk_pct if already set by caller (e.g. daily budget cap)
     grade = opp.get("grade", "B")
+    market_type = opp.get("market_type", "spot")
     try:
-        dynamic_risk_pct = cap_mgr.get_dynamic_risk(grade)
+        dynamic_risk_pct = float(opp["dynamic_risk_pct"]) if opp.get("dynamic_risk_pct") is not None \
+                           else cap_mgr.get_dynamic_risk(grade)
     except Exception:
-        dynamic_risk_pct = 1.5
+        dynamic_risk_pct = 1.0
+    try:
+        leverage = cap_mgr.get_leverage(grade, market_type)
+    except Exception:
+        leverage = 1
 
     pos = None
     if entry_p and stop_p:
         try:
-            pos = cap_mgr.compute_position(entry_p, stop_p, risk_pct=dynamic_risk_pct)
+            pos = cap_mgr.compute_position(
+                entry_p, stop_p,
+                risk_pct=dynamic_risk_pct,
+                leverage=leverage,
+                signal=opp.get("signal", "BULLISH"),
+            )
         except Exception:
             pos = None
 
@@ -68,11 +80,16 @@ def _make_entry(opp: dict) -> dict:
         "stop":             stop_p,
         "target":           target_p,
         "risk_reward":      rr,
-        "dynamic_risk_pct": dynamic_risk_pct,
-        "position_value":   pos["position_value"] if pos else None,
-        "qty":              pos["qty"]             if pos else None,
-        "risk_amount":      pos["risk_amount"]     if pos else None,
-        "capital_at_log":   pos["capital"]         if pos else None,
+        "market_type":       market_type,
+        "leverage":          leverage,
+        "dynamic_risk_pct":  dynamic_risk_pct,
+        "position_value":    pos["position_value"]    if pos else None,
+        "margin_required":   pos.get("margin_required") if pos else None,
+        "liquidation_price": pos.get("liquidation_price") if pos else None,
+        "funding_rate":      opp.get("funding_rate"),
+        "qty":               pos["qty"]              if pos else None,
+        "risk_amount":       pos["risk_amount"]      if pos else None,
+        "capital_at_log":    pos["capital"]          if pos else None,
         "rsi":              opp.get("rsi"),
         "adx":              opp.get("adx"),
         "sentiment_score":  sent.get("overall"),
@@ -81,7 +98,10 @@ def _make_entry(opp: dict) -> dict:
         "status":           "OPEN",   # OPEN | WIN | LOSS | CANCELLED
         "exit_price":       None,
         "exit_time":        None,
-        "pnl_pct":          None,
+        "pnl_pct":          None,     # % of price movement
+        "pnl":              None,     # USDT profit/loss (capped at 2R for losses)
+        "pnl_raw":          None,     # actual USDT P&L before any cap (audit trail)
+        "risk_exceeded":    False,    # True if raw loss > 2× risk_amount
         "notes":            "",
     }
 
@@ -120,16 +140,10 @@ def log_signal(opp: dict) -> Optional[dict]:
     with _lock:
         entries = _load()
 
-        # Deduplicate: same symbol within 4h
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=4)
+        # Deduplicate: same symbol with status OPEN (don't block re-logging after a trade closes)
         for e in entries:
-            if e["symbol"] == opp["symbol"]:
-                try:
-                    logged = datetime.fromisoformat(e["logged_at"])
-                    if logged > cutoff:
-                        return None          # already logged recently
-                except Exception:
-                    pass
+            if e["symbol"] == opp["symbol"] and e.get("status") == "OPEN":
+                return None   # already has an open trade for this symbol
 
         entry = _make_entry(opp)
         entries.insert(0, entry)            # newest first
@@ -163,16 +177,35 @@ def update_entry(entry_id: str, status: str,
                 e["exit_time"]  = datetime.now(timezone.utc).isoformat() if status != "OPEN" else None
                 e["notes"]      = notes or e.get("notes", "")
 
-                # Compute P&L %
+                # Compute P&L
                 if exit_price and e.get("entry"):
-                    pnl = (exit_price - e["entry"]) / e["entry"] * 100
+                    pnl_pct = (exit_price - e["entry"]) / e["entry"] * 100
                     if e["signal"] == "BEARISH":
-                        pnl = -pnl
-                    e["pnl_pct"] = round(pnl, 3)
-                    # Compound capital
-                    if e.get("position_value"):
+                        pnl_pct = -pnl_pct
+                    e["pnl_pct"] = round(pnl_pct, 3)
+                    pos_val     = e.get("position_value") or 0
+                    risk_amount = e.get("risk_amount") or 0
+                    raw_pnl     = round(pos_val * pnl_pct / 100, 2)
+                    e["pnl_raw"] = raw_pnl
+
+                    # Cap capital impact at 2R (2× intended risk) for losses
+                    if risk_amount and raw_pnl < -(risk_amount * 2):
+                        capped_pnl = round(-(risk_amount * 2), 2)
+                        e["pnl"]           = capped_pnl
+                        e["risk_exceeded"] = True
+                        logger.warning(
+                            "Journal %s: raw loss %s capped to %s (2R limit, risk_amount=%s)",
+                            entry_id, raw_pnl, capped_pnl, risk_amount,
+                        )
+                    else:
+                        e["pnl"]           = raw_pnl
+                        e["risk_exceeded"] = False
+
+                    # Compound capital using effective (potentially capped) pnl
+                    if pos_val:
                         try:
-                            cap_mgr.apply_trade_result(pnl, e["position_value"])
+                            effective_pct = e["pnl"] / pos_val * 100
+                            cap_mgr.apply_trade_result(effective_pct, pos_val)
                         except Exception:
                             pass
 
@@ -182,6 +215,18 @@ def update_entry(entry_id: str, status: str,
     return None
 
 
+def reset_journal() -> dict:
+    """Clear all journal entries (backs up to journal_backup.json first)."""
+    import shutil
+    backup = JOURNAL_FILE.replace("journal.json", "journal_backup.json")
+    with _lock:
+        if os.path.exists(JOURNAL_FILE):
+            shutil.copy2(JOURNAL_FILE, backup)
+        _save([])
+    logger.warning("Journal reset — backup at %s", backup)
+    return {"ok": True, "backed_up_to": backup}
+
+
 def get_summary() -> dict:
     """Performance summary over all closed trades."""
     entries = _load()
@@ -189,15 +234,16 @@ def get_summary() -> dict:
     wins    = [e for e in closed if e["status"] == "WIN"]
     losses  = [e for e in closed if e["status"] == "LOSS"]
 
-    pnls    = [e["pnl_pct"] for e in closed if e.get("pnl_pct") is not None]
-    rrs     = [e["risk_reward"] for e in entries if e.get("risk_reward")]
-    scores  = [e["score"] for e in entries if e.get("score")]
+    pnls_pct  = [e["pnl_pct"] for e in closed if e.get("pnl_pct") is not None]
+    pnls_usdt = [e["pnl"]     for e in closed if e.get("pnl")     is not None]
+    rrs       = [e["risk_reward"] for e in entries if e.get("risk_reward")]
+    scores    = [e["score"]       for e in entries if e.get("score")]
 
-    win_rate = round(len(wins) / len(closed) * 100, 1) if closed else 0
-    avg_pnl  = round(sum(pnls) / len(pnls), 2) if pnls else 0
-    total_pnl = round(sum(pnls), 2) if pnls else 0
-    avg_rr   = round(sum(rrs) / len(rrs), 2) if rrs else 0
-    avg_score = round(sum(scores) / len(scores) * 100, 1) if scores else 0
+    win_rate   = round(len(wins) / len(closed) * 100, 1) if closed else 0
+    avg_pnl    = round(sum(pnls_usdt) / len(pnls_usdt), 2) if pnls_usdt else 0
+    total_pnl  = round(sum(pnls_usdt), 2) if pnls_usdt else 0
+    avg_rr     = round(sum(rrs) / len(rrs), 2) if rrs else 0
+    avg_score  = round(sum(scores) / len(scores) * 100, 1) if scores else 0
 
     evs = [e["expected_value"] for e in entries if e.get("expected_value") is not None]
     avg_ev = round(sum(evs) / len(evs), 3) if evs else 0

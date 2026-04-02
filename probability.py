@@ -36,7 +36,7 @@ _GRADE_B_SCORE = 0.65
 
 # ── Grade-default risk % ──────────────────────────────────────
 
-GRADE_RISK = {"A": 2.5, "B": 1.5, "C": 0.75}
+GRADE_RISK = {"A": 1.5, "B": 1.0, "C": 0.5}   # mirrors capital.GRADE_BASE_RISK — hard cap 1.5%
 
 
 def _isnan(v) -> bool:

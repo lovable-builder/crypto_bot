@@ -305,6 +305,18 @@ class IndicatorSnapshot:
     volume_ratio: float = np.nan
     obv:          float = np.nan
 
+    # Breakout pre-filter metrics
+    bb_squeeze:             bool  = False    # BB width contracting vs historical average
+    bb_squeeze_intensity:   float = 0.0     # 0–1 (1 = maximally compressed)
+    atr_contracting:        bool  = False    # ATR below its own rolling average
+    volume_buildup:         bool  = False    # volume rising 3 consecutive bars & ratio > 1.2
+    obv_rising:             bool  = False    # OBV trending up over last 5 bars
+    swing_high_near:        float = np.nan   # nearest recent swing high price
+    swing_low_near:         float = np.nan   # nearest recent swing low price
+    near_resistance_pct:    float = np.nan   # distance to swing high as % of price
+    near_support_pct:       float = np.nan   # distance to swing low as % of price
+    breakout_score:         float = 0.0     # composite pre-breakout readiness 0–1
+
     @property
     def ema_cross_bullish(self) -> bool:
         """Fast EMA just crossed above slow EMA."""
@@ -332,6 +344,39 @@ class IndicatorSnapshot:
     @property
     def trend_is_strong(self) -> bool:
         return not np.isnan(self.adx) and self.adx > 25
+
+
+def find_swing_pivots(
+    highs:   np.ndarray,
+    lows:    np.ndarray,
+    n:       int = 5,
+    max_pivots: int = 3,
+) -> tuple:
+    """
+    Identify swing highs and lows using N-bar pivot rule.
+    A swing high at index i: highs[i] is the max in [i-n:i+n+1].
+    A swing low  at index i: lows[i]  is the min in [i-n:i+n+1].
+    Returns (swing_high_prices, swing_low_prices) — most recent first, up to max_pivots each.
+    """
+    length = len(highs)
+    swing_highs: list = []
+    swing_lows:  list = []
+    # Avoid last n bars (not yet confirmed pivots)
+    for i in range(length - 1, n - 1, -1):
+        lo = max(0, i - n)
+        hi = min(length, i + n + 1)
+        if highs[i] == np.max(highs[lo:hi]):
+            swing_highs.append(highs[i])
+            if len(swing_highs) >= max_pivots:
+                break
+    for i in range(length - 1, n - 1, -1):
+        lo = max(0, i - n)
+        hi = min(length, i + n + 1)
+        if lows[i] == np.min(lows[lo:hi]):
+            swing_lows.append(lows[i])
+            if len(swing_lows) >= max_pivots:
+                break
+    return swing_highs, swing_lows
 
 
 def compute_snapshot(
@@ -397,7 +442,60 @@ def compute_snapshot(
     snap.di_minus = adx_result.di_minus[-1]
 
     # Volume
-    snap.volume_ratio = volume_ratio(volumes, cfg_vol_lb)[-1]
-    snap.obv          = obv(closes, volumes)[-1]
+    vol_ratio_arr     = volume_ratio(volumes, cfg_vol_lb)
+    snap.volume_ratio = vol_ratio_arr[-1]
+    obv_arr           = obv(closes, volumes)
+    snap.obv          = obv_arr[-1]
+
+    # ── Breakout pre-filter metrics ───────────────────────────
+    # BB squeeze: current width < 80% of 20-bar average width
+    if n >= 22:
+        mean_bb_width = float(np.nanmean(bb.width[-21:-1]))
+        if mean_bb_width > 0 and not np.isnan(snap.bb_width):
+            ratio = float(snap.bb_width / mean_bb_width)
+            snap.bb_squeeze = bool(ratio < 0.80)
+            snap.bb_squeeze_intensity = round(max(0.0, min(1.0, 1.0 - ratio)), 3)
+
+    # ATR contracting: current ATR < 85% of 10-bar mean
+    if n >= 12:
+        mean_atr = float(np.nanmean(atr_arr[-11:-1]))
+        if mean_atr > 0 and not np.isnan(snap.atr):
+            snap.atr_contracting = bool(snap.atr < mean_atr * 0.85)
+
+    # Volume buildup: volume increasing for last 3 bars AND ratio > 1.2
+    if n >= 4:
+        snap.volume_buildup = bool(
+            volumes[-1] > volumes[-2] > volumes[-3] and
+            not np.isnan(snap.volume_ratio) and snap.volume_ratio > 1.2
+        )
+
+    # OBV rising: OBV[-1] > OBV[-5]
+    if n >= 6:
+        snap.obv_rising = bool(not np.isnan(obv_arr[-1]) and obv_arr[-1] > obv_arr[-6])
+
+    # Swing pivots: nearest swing high and low
+    sh_list, sl_list = find_swing_pivots(highs, lows, n=5)
+    if sh_list and not np.isnan(snap.close):
+        snap.swing_high_near = sh_list[0]
+        snap.near_resistance_pct = round(
+            abs(snap.swing_high_near - snap.close) / snap.close * 100, 3
+        )
+    if sl_list and not np.isnan(snap.close):
+        snap.swing_low_near = sl_list[0]
+        snap.near_support_pct = round(
+            abs(snap.close - snap.swing_low_near) / snap.close * 100, 3
+        )
+
+    # Composite breakout score
+    bs = 0.0
+    if snap.bb_squeeze:                                   bs += 0.25
+    if snap.bb_squeeze_intensity > 0.5:                   bs += 0.10
+    if snap.atr_contracting:                              bs += 0.15
+    if snap.volume_buildup:                               bs += 0.20
+    if snap.obv_rising:                                   bs += 0.10
+    if not np.isnan(snap.near_resistance_pct) and snap.near_resistance_pct < 1.5:
+        bs += 0.15
+    if not np.isnan(snap.rsi) and 43 < snap.rsi < 57:    bs += 0.05
+    snap.breakout_score = round(min(1.0, bs), 3)
 
     return snap
