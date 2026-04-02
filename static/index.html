@@ -22,6 +22,21 @@
   --purple:  #a78bfa;
   --yellow:  #ffd700;
 }
+
+.light-theme {
+  --bg:      #f8f9fa;
+  --surface: #ffffff;
+  --card:    #ffffff;
+  --border:  #e2e8f0;
+  --text:    #1a202c;
+  --muted:   #718096;
+  --cyan:    #0891b2;
+  --green:   #059669;
+  --red:     #dc2626;
+  --orange:  #ea580c;
+  --purple:  #7c3aed;
+  --yellow:  #ca8a04;
+}
 html, body { height: 100%; overflow: hidden; }
 body {
   font-family: 'Segoe UI', system-ui, sans-serif;
@@ -369,29 +384,18 @@ tr.clickable { cursor: pointer; }
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .m-tweet-meta { font-size: 9.5px; color: var(--muted); display: flex; gap: 8px; }
 
-/* ── JOURNAL MODAL ──────────────────────────────────────── */
-.jnl-overlay {
-  display: none; position: fixed; inset: 0;
-  background: rgba(0,0,0,.78); z-index: 110;
-  backdrop-filter: blur(4px); align-items: center; justify-content: center;
-}
-.jnl-overlay.open { display: flex; }
-.jnl-modal {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 12px; width: min(1100px, 97vw); max-height: 92vh;
-  display: flex; flex-direction: column; overflow: hidden;
-  box-shadow: 0 24px 80px rgba(0,0,0,.6);
-}
+/* ── JOURNAL PAGE ────────────────────────────────────────── */
 .jnl-header {
   display: flex; align-items: center; gap: 12px;
-  padding: 13px 18px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  padding: 10px 18px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  background: var(--surface);
 }
 .jnl-title { font-size: 16px; font-weight: 700; color: var(--cyan); }
 .jnl-spacer { flex: 1; }
 .jnl-summary {
-  display: flex; gap: 0;
+  display: flex; gap: 0; flex-wrap: wrap;
   border-bottom: 1px solid var(--border); flex-shrink: 0;
-  background: var(--card);
+  background: var(--card); overflow-x: auto;
 }
 .jnl-stat {
   padding: 10px 20px; border-right: 1px solid var(--border);
@@ -590,6 +594,72 @@ tr.clickable { cursor: pointer; }
 .action-finding { font-size: 11.5px; color: var(--text); margin-bottom: 4px; }
 .action-text   { font-size: 10.5px; color: var(--muted); font-style: italic; }
 
+/* ── SL/TP PROXIMITY ALERTS ─────────────────────────────────── */
+@keyframes alertPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+.proximity-alert {
+  display: inline-block; font-size: 9px; font-weight: 700; padding: 1px 5px;
+  border-radius: 3px; margin-left: 4px; animation: alertPulse 1.2s ease-in-out infinite;
+}
+.proximity-tp { background: rgba(0,200,83,.2);  color: var(--green); border: 1px solid rgba(0,200,83,.5); }
+.proximity-sl { background: rgba(255,61,90,.2); color: var(--red);   border: 1px solid rgba(255,61,90,.5); }
+
+/* ── TRAILING STOP ──────────────────────────────────────────── */
+.trail-btn {
+  padding: 2px 7px; border-radius: 5px; border: 1px solid var(--border);
+  font-size: 10px; cursor: pointer; background: var(--bg); color: var(--muted);
+  transition: background .15s, border-color .15s;
+}
+.trail-btn:hover  { border-color: var(--cyan); color: var(--cyan); }
+.trail-btn.active { border-color: var(--orange); color: var(--orange); background: rgba(255,159,67,.1); }
+.trail-popup {
+  position: absolute; z-index: 20; bottom: calc(100% + 4px); right: 0;
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; min-width: 200px; box-shadow: 0 8px 24px rgba(0,0,0,.5);
+}
+.trail-popup label { font-size: 10px; color: var(--muted); display: block; margin-bottom: 2px; }
+.trail-popup select, .trail-popup input[type=number] {
+  width: 100%; margin-bottom: 7px; font-size: 11px;
+}
+.stop-moved { color: var(--orange) !important; }
+
+/* ── JOURNAL GRID VIEW ──────────────────────────────────── */
+.jnl-grid-wrap { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px 14px; }
+.jnl-grid-wrap::-webkit-scrollbar { width: 5px; }
+.jnl-grid-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.jnl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 10px; }
+.trade-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;
+  transition: border-color .15s;
+}
+.trade-card:hover { border-color: rgba(0,212,200,.3); }
+.trade-card.OPEN     { border-left: 3px solid var(--cyan); }
+.trade-card.WIN      { border-left: 3px solid var(--green); }
+.trade-card.LOSS     { border-left: 3px solid var(--red); }
+.trade-card.CANCELLED{ border-left: 3px solid var(--muted); }
+.tc-header { display: flex; align-items: center; gap: 7px; }
+.tc-sym { font-size: 13px; font-weight: 700; color: var(--cyan); cursor: pointer; }
+.tc-sym:hover { text-decoration: underline; }
+.tc-spacer { flex: 1; }
+.tc-prices { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
+.tc-price-cell { text-align: center; }
+.tc-price-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+.tc-price-val { font-size: 11.5px; font-weight: 600; }
+.tc-footer { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tc-meta { font-size: 10px; color: var(--muted); }
+.tc-actions { display: flex; gap: 4px; align-items: center; margin-left: auto; }
+.tc-time { font-size: 9.5px; color: var(--muted); }
+.jnl-view-btn {
+  padding: 4px 10px; font-size: 12px; border-radius: 5px; border: 1px solid var(--border);
+  background: none; color: var(--muted); cursor: pointer; transition: color .15s, border-color .15s;
+  margin-right: 4px;
+}
+.jnl-view-btn.active { border-color: var(--cyan); color: var(--cyan); }
+.jnl-view-btn:hover  { border-color: var(--text); color: var(--text); }
+
 /* ── AI PANEL ───────────────────────────────────────────── */
 .ai-panel {
   background: linear-gradient(135deg, rgba(0,212,200,.04) 0%, rgba(168,85,247,.04) 100%);
@@ -682,6 +752,26 @@ tr.clickable { cursor: pointer; }
 .toast-info  { background: var(--cyan); color: #000; }
 @keyframes fadeInUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
 
+/* ── PAGE NAV ────────────────────────────────────────────── */
+.page-nav {
+  display: flex; align-items: center;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  flex-shrink: 0; padding: 0 8px;
+}
+.nav-tab {
+  padding: 9px 20px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  background: none; border: none; color: var(--muted);
+  border-bottom: 2px solid transparent; transition: color .15s, border-color .15s;
+  white-space: nowrap;
+}
+.nav-tab:hover { color: var(--text); }
+.nav-tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+.nav-spacer { flex: 1; }
+
+/* ── PAGE CONTAINERS ─────────────────────────────────────── */
+.page { display: none; flex: 1; flex-direction: column; min-height: 0; overflow: hidden; }
+.page.active { display: flex; }
+
 /* ── MARKET TAB BAR ─────────────────────────────────────── */
 .tab-bar { display:flex; gap:0; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0; }
 .mkt-tab { padding:8px 22px; font-size:12.5px; font-weight:700; cursor:pointer;
@@ -705,8 +795,6 @@ tr.clickable { cursor: pointer; }
   </div>
   <div class="h-spacer"></div>
   <div class="controls">
-    <button class="btn btn-ghost" onclick="openDocs()">📖 Docs</button>
-    <button class="btn btn-ghost" id="jnlBtn" onclick="openJournal()">📓 Journal <span id="jnlOpenBadge" style="display:none;background:var(--cyan);color:#000;border-radius:10px;padding:0 5px;font-size:10px;margin-left:3px">0</span></button>
     <button class="btn btn-ghost active" id="newsToggleBtn" onclick="toggleNews()">📰 News</button>
     <div style="display:flex;align-items:center;gap:5px">
       <label>TF</label>
@@ -722,8 +810,22 @@ tr.clickable { cursor: pointer; }
     </div>
     <button class="btn btn-primary" id="scanBtn" onclick="triggerScan()">⚡ Scan</button>
     <button id="breakoutFilterBtn" onclick="toggleBreakoutFilter()" style="padding:5px 11px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--muted);transition:all 0.2s">🚀 Breakout</button>
+    <button id="themeToggleBtn" onclick="toggleTheme()" style="padding:5px 11px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--muted);transition:all 0.2s" title="Toggle light/dark theme">☀️</button>
   </div>
 </header>
+
+<!-- ── PAGE NAV ─────────────────────────────────────────────── -->
+<nav class="page-nav">
+  <button class="nav-tab active" id="nav-scanner" onclick="switchPage('scanner')">📡 Scanner</button>
+  <button class="nav-tab" id="nav-journal" onclick="switchPage('journal')">
+    📓 Journal <span id="jnlOpenBadge" style="display:none;background:var(--cyan);color:#000;border-radius:10px;padding:0 5px;font-size:10px;margin-left:3px">0</span>
+  </button>
+  <button class="nav-tab" id="nav-eval" onclick="switchPage('eval')">📊 Evaluation</button>
+  <button class="nav-tab" id="nav-docs" onclick="switchPage('docs')">📖 Docs</button>
+</nav>
+
+<!-- ── SCANNER PAGE ──────────────────────────────────────────── -->
+<div id="scannerPage" class="page active">
 
 <!-- ── STATS BAR ────────────────────────────────────────────── -->
 <div class="stats-bar">
@@ -905,22 +1007,19 @@ tr.clickable { cursor: pointer; }
   </div>
 </div>
 
-<!-- ── JOURNAL MODAL ─────────────────────────────────────────── -->
-<div class="jnl-overlay" id="jnlOverlay" onclick="handleJnlOverlay(event)">
-  <div class="jnl-modal">
+</div><!-- /scannerPage -->
+
+<!-- ── JOURNAL PAGE ──────────────────────────────────────────── -->
+<div id="journalPage" class="page">
     <div class="jnl-header">
       <span class="jnl-title">📓 Trade Journal</span>
       <span style="font-size:11px;color:var(--muted)" id="jnlSubtitle">Auto-logged signals with Entry / SL / TP</span>
       <div class="jnl-spacer"></div>
       <span id="monitorCheckedAt" style="font-size:10px;color:var(--muted);margin-right:6px"></span>
       <button class="jnl-reset-btn" id="checkNowBtn" onclick="checkPricesNow()" title="Force immediate price check for all open positions">⟳ Check Now</button>
+      <button class="jnl-view-btn" id="jnlViewBtn" onclick="toggleJnlView()" title="Toggle grid/list view">⊞</button>
+      <button class="jnl-reset-btn" id="closeAllBtn" onclick="confirmCloseAll()" title="Cancel all open positions">✕ Close All</button>
       <button class="jnl-reset-btn" onclick="confirmResetJournal()">Reset Journal</button>
-      <button class="close-btn" onclick="closeJournal()">✕</button>
-    </div>
-    <!-- Tabs -->
-    <div class="jnl-tabs">
-      <button class="jnl-tab-btn active" id="tabJournal" onclick="switchJnlTab('journal')">Journal</button>
-      <button class="jnl-tab-btn" id="tabEval" onclick="switchJnlTab('eval')">Evaluation</button>
     </div>
     <!-- Summary stats -->
     <div class="jnl-summary" id="jnlSummary">
@@ -1013,8 +1112,11 @@ tr.clickable { cursor: pointer; }
         <tbody id="projBody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:10px">Log trades to generate projection</td></tr></tbody>
       </table>
     </div>
-    <!-- ── EVALUATION PANEL (hidden until tab selected) ── -->
-    <div class="eval-panel" id="evalPanel" style="display:none">
+</div><!-- /journalPage -->
+
+<!-- ── EVALUATION PAGE ───────────────────────────────────────── -->
+<div id="evalPage" class="page">
+  <div class="eval-panel" id="evalPanel">
 
       <!-- Performance Charts Section -->
       <!-- Action Plan Section -->
@@ -1044,6 +1146,41 @@ tr.clickable { cursor: pointer; }
             <div class="chart-title">Grade Performance</div>
             <div class="chart-canvas"><canvas id="gradeChart"></canvas></div>
           </div>
+        </div>
+      </div>
+
+      <!-- Monte Carlo Simulation -->
+      <div class="eval-section" id="monteCarloSection" style="margin-bottom:16px">
+        <div class="eval-section-title" style="cursor:pointer;display:flex;align-items:center;gap:6px" onclick="toggleMCSection()">
+          Strategy Simulation (Monte Carlo)
+          <span id="mcToggleIcon" style="font-size:10px;color:var(--muted)">▶</span>
+        </div>
+        <div id="mcBody" style="display:none">
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px">
+            <div>
+              <label style="font-size:10px;color:var(--muted)">Trades</label>
+              <select id="mcTrades" style="margin-left:6px;font-size:11px">
+                <option value="100">100</option>
+                <option value="250" selected>250</option>
+                <option value="500">500</option>
+                <option value="1000">1000</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:10px;color:var(--muted)">Simulations</label>
+              <select id="mcSims" style="margin-left:6px;font-size:11px">
+                <option value="500">500</option>
+                <option value="1000" selected>1000</option>
+                <option value="2000">2000</option>
+              </select>
+            </div>
+            <button onclick="runMonteCarloUI()" style="padding:5px 14px;font-size:11px;font-weight:700;border-radius:5px;background:var(--cyan);color:#000;border:none;cursor:pointer">Run Simulation</button>
+          </div>
+          <div class="chart-card" style="margin-bottom:12px">
+            <div class="chart-title">Equity Fan Chart (10th / 25th / Median / 75th / 90th percentile)</div>
+            <div style="position:relative;height:220px"><canvas id="mcChart"></canvas></div>
+          </div>
+          <div id="mcSummary" style="display:flex;gap:10px;flex-wrap:wrap"></div>
         </div>
       </div>
 
@@ -1193,34 +1330,21 @@ tr.clickable { cursor: pointer; }
         </div>
       </div>
 
-    </div>
+  </div><!-- /eval-panel -->
+</div><!-- /evalPage -->
 
+<!-- ── DOCS PAGE ─────────────────────────────────────────────── -->
+<div id="docsPage" class="page">
+  <div style="padding:12px 24px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:10px">
+    <span style="font-size:15px;font-weight:800;color:var(--cyan)">📖 Documentation</span>
+    <span style="font-size:11px;color:var(--muted)">Complete reference for all features and calculations</span>
   </div>
-</div>
-
-<!-- ── DOCS OVERLAY ──────────────────────────────────────────────────────── -->
-<div class="docs-overlay" id="docsOverlay">
-  <div class="docs-modal">
-    <div class="docs-modal-header">
-      <span style="font-size:15px;font-weight:800;color:var(--cyan)">📖 Documentation</span>
-      <span style="font-size:11px;color:var(--muted);margin-left:10px">Complete reference for all features and calculations</span>
-      <div style="flex:1"></div>
-      <button class="close-btn" onclick="closeDocs()">✕</button>
-    </div>
-    <div id="docsPanel" style="padding:20px 24px;overflow-y:auto;flex:1;color:var(--text);font-size:12.5px;line-height:1.7">
+  <div id="docsPanel" style="padding:20px 24px;overflow-y:auto;flex:1;color:var(--text);font-size:12.5px;line-height:1.7">
 
       <style>
-        .docs-overlay {
-          display: none; position: fixed; inset: 0; z-index: 1100;
-          background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
-          align-items: center; justify-content: center;
-        }
-        .docs-overlay.open { display: flex; }
-        .docs-modal {
-          background: var(--surface); border: 1px solid var(--border);
-          border-radius: 14px; width: 92vw; max-width: 1000px;
-          height: 88vh; display: flex; flex-direction: column;
-          overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,.7);
+        /* docs styles — retained for formatting within docsPanel */
+        .docs-old-modal-unused {
+          display: none; /* placeholder so old selectors don't break layout */
         }
         .docs-modal-header {
           display: flex; align-items: center; gap: 8px;
@@ -1626,9 +1750,8 @@ Capped at: −2 × risk_amount (2R maximum loss)</div>
         Gate.io Market Scanner — Documentation · All calculations are approximate and for informational purposes only.
       </div>
 
-    </div>
-  </div>
-</div>
+  </div><!-- /docsPanel -->
+</div><!-- /docsPage -->
 
 <script>
 // ═══════════════════════════════════════════════════════════
@@ -1646,6 +1769,8 @@ let newsPaneOpen = true;
 let journalEntries = [];
 let journalSummary = {};
 let capitalState   = { capital: 10000, initial: 10000, risk_pct: 1.5, growth_pct: 0, drawdown_pct: 0 };
+let _jnlView = localStorage.getItem('jnlView') || 'table';
+let _alertedThisCycle = new Set();  // reset each price-check cycle to avoid toast spam
 let chartInstances = [];
 
 // ═══════════════════════════════════════════════════════════
@@ -1761,6 +1886,7 @@ function handleMsg(msg) {
 //  LIVE PRICE MONITOR
 // ═══════════════════════════════════════════════════════════
 function updateLivePrices(positions, checkedAt) {
+  _alertedThisCycle = new Set();  // reset per cycle so alerts re-fire next check if still near
   // Update "last checked" label
   if (checkedAt) {
     const el = document.getElementById('monitorCheckedAt');
@@ -1778,17 +1904,43 @@ function updateLivePrices(positions, checkedAt) {
     const usdt = pos.unreal_usdt;
     const col  = pct >= 0 ? 'var(--green)' : 'var(--red)';
     const sign = pct >= 0 ? '+' : '';
+    const PROX_PCT = 5; // alert threshold
+    const nearTP = pos.pct_to_tp != null && pos.pct_to_tp <= PROX_PCT && pos.pct_to_tp >= 0;
+    const nearSL = pos.pct_to_sl != null && pos.pct_to_sl <= PROX_PCT && pos.pct_to_sl >= 0;
+
     const tpDist = pos.pct_to_tp != null
-      ? `<span style="color:var(--muted);font-size:9px">TP ${pos.pct_to_tp.toFixed(1)}% away</span>`
+      ? `<span style="color:${nearTP?'var(--green)':'var(--muted)'};font-size:9px">TP ${pos.pct_to_tp.toFixed(1)}% away${nearTP?'<span class="proximity-alert proximity-tp">⚡ NEAR TP</span>':''}</span>`
       : '';
     const slDist = pos.pct_to_sl != null
-      ? `<span style="color:var(--muted);font-size:9px"> · SL ${pos.pct_to_sl.toFixed(1)}% away</span>`
+      ? `<span style="color:${nearSL?'var(--red)':'var(--muted)'};font-size:9px"> · SL ${pos.pct_to_sl.toFixed(1)}% away${nearSL?'<span class="proximity-alert proximity-sl">⚠ NEAR SL</span>':''}</span>`
       : '';
+
     pnlCell.innerHTML =
       `<span style="color:${col};font-weight:700">${sign}${pct.toFixed(2)}%</span>` +
       `<br><span style="color:${col};font-size:10px">${sign}$${Math.abs(usdt).toFixed(2)}</span>` +
       `<br>${tpDist}${slDist}` +
       `<br><span style="color:var(--muted);font-size:9px">@ ${pos.price}</span>`;
+
+    // Fire toast once per cycle per symbol (track with a Set)
+    if (nearTP && !_alertedThisCycle.has(pos.id + ':tp')) {
+      _alertedThisCycle.add(pos.id + ':tp');
+      showToast(`⚡ ${pos.symbol} within ${pos.pct_to_tp.toFixed(1)}% of Take Profit`, 'info');
+    }
+    if (nearSL && !_alertedThisCycle.has(pos.id + ':sl')) {
+      _alertedThisCycle.add(pos.id + ':sl');
+      showToast(`⚠ ${pos.symbol} within ${pos.pct_to_sl.toFixed(1)}% of Stop Loss`, 'error');
+    }
+
+    // Update stop cell if trailing moved it
+    if (pos.trailing_active && pos.stop != null) {
+      const stopCell = document.getElementById('stop-cell-' + pos.id);
+      if (stopCell) {
+        stopCell.innerHTML = `<span class="stop-moved" title="Trailing SL">${fmtP(pos.stop)} 🔒</span>`;
+      }
+      // Update trail button icon
+      const tBtn = document.getElementById('trail-btn-' + pos.id);
+      if (tBtn) { tBtn.classList.add('active'); tBtn.textContent = '🔒 TSL'; }
+    }
   });
 
   // Compute total unrealized PnL and update live equity in capital displays
@@ -2620,22 +2772,39 @@ async function loadModalNews(symbol, opp) {
 // ═══════════════════════════════════════════════════════════
 //  JOURNAL
 // ═══════════════════════════════════════════════════════════
-function openDocs() {
-  document.getElementById('docsOverlay').classList.add('open');
+// ── Page navigation ───────────────────────────────────────────
+const _pages = ['scanner', 'journal', 'eval', 'docs'];
+
+function switchPage(name) {
+  _pages.forEach(p => {
+    const el = document.getElementById(p + 'Page');
+    if (el) { el.style.display = ''; el.classList.toggle('active', p === name); }
+    const btn = document.getElementById('nav-' + p);
+    if (btn) btn.classList.toggle('active', p === name);
+  });
+  // Show/hide scanner-specific controls in header
+  const newsBtn = document.getElementById('newsToggleBtn');
+  if (newsBtn) newsBtn.style.display = name === 'scanner' ? '' : 'none';
+
+  if (name === 'journal') _enterJournalPage();
+  if (name === 'eval') loadEvaluation();
 }
-function closeDocs() {
-  document.getElementById('docsOverlay').classList.remove('open');
-}
-async function openJournal() {
-  document.getElementById('jnlOverlay').classList.add('open');
+
+async function _enterJournalPage() {
+  const btn = document.getElementById('jnlViewBtn');
+  if (btn) {
+    btn.textContent = _jnlView === 'grid' ? '☰' : '⊞';
+    btn.classList.toggle('active', _jnlView === 'grid');
+    btn.title = _jnlView === 'grid' ? 'Switch to table view' : 'Switch to grid view';
+  }
   await refreshJournal();
 }
-function closeJournal() {
-  document.getElementById('jnlOverlay').classList.remove('open');
-}
-function handleJnlOverlay(e) {
-  if (e.target === document.getElementById('jnlOverlay')) closeJournal();
-}
+
+function openJournal() { switchPage('journal'); }
+function closeJournal() { switchPage('scanner'); }
+function openDocs()     { switchPage('docs'); }
+function closeDocs()    { switchPage('scanner'); }
+function handleJnlOverlay() {}   // no-op — no longer a modal
 
 // ── Journal reset ─────────────────────────────────────────
 async function confirmResetJournal() {
@@ -2650,6 +2819,29 @@ async function confirmResetJournal() {
       showToast('Reset failed', true);
     }
   } catch(e) { showToast('Error resetting journal', true); }
+}
+
+async function confirmCloseAll() {
+  const openCount = journalEntries.filter(e => e.status === 'OPEN').length;
+  if (!openCount) { showToast('No open positions to close', 'info'); return; }
+  if (!confirm(`Cancel all ${openCount} open position(s)? They will be marked as CANCELLED.`)) return;
+  try {
+    const btn = document.getElementById('closeAllBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    const res  = await fetch('/api/journal/close-all', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      showToast(`✓ ${data.closed} position(s) cancelled`);
+      await refreshJournal();
+    } else {
+      showToast('Close all failed', 'error');
+    }
+  } catch(e) {
+    showToast('Error closing positions', 'error');
+  } finally {
+    const btn = document.getElementById('closeAllBtn');
+    if (btn) { btn.disabled = false; btn.textContent = '✕ Close All'; }
+  }
 }
 
 // ── Capital edit ──────────────────────────────────────────
@@ -2702,31 +2894,16 @@ async function reconcileCapital() {
 // ── Journal tabs ──────────────────────────────────────────
 let _jnlTab = 'journal';
 function switchJnlTab(tab) {
-  _jnlTab = tab;
-  document.getElementById('tabJournal').classList.toggle('active', tab === 'journal');
-  document.getElementById('tabEval').classList.toggle('active', tab === 'eval');
-  const journalContent = document.querySelector('.jnl-table-wrap');
-  const projWrap       = document.querySelector('.proj-wrap');
-  const evalPanel      = document.getElementById('evalPanel');
-  const jnlSummary     = document.getElementById('jnlSummary');
-  if (tab === 'journal') {
-    journalContent.style.display = '';
-    projWrap.style.display = '';
-    evalPanel.style.display = 'none';
-    jnlSummary.style.display = '';
-  } else {
-    journalContent.style.display = 'none';
-    projWrap.style.display = 'none';
-    evalPanel.style.display = '';
-    jnlSummary.style.display = 'none';
-    loadEvaluation();
-  }
+  // Tabs removed — route to dedicated nav pages instead
+  if (tab === 'eval') switchPage('eval');
+  else switchPage('journal');
 }
 
 async function loadEvaluation() {
   try {
     const res  = await fetch('/api/evaluation');
     const data = await res.json();
+    _mcEvalData = data;   // cache for Monte Carlo
     renderEvalPanel(data);
   } catch (e) {
     console.error('evaluation load failed', e);
@@ -2915,6 +3092,126 @@ function renderCharts(evaluation) {
         }
       }
     });
+  }
+}
+
+// ── Monte Carlo ───────────────────────────────────────────────
+let _mcChart = null;
+let _mcEvalData = null;   // cached from last eval load
+
+function toggleMCSection() {
+  const body = document.getElementById('mcBody');
+  const icon = document.getElementById('mcToggleIcon');
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (icon) icon.textContent = open ? '▶' : '▼';
+}
+
+function runMonteCarlo(winRate, avgWin, avgLoss, startCapital, numTrades, numSims) {
+  const results = [];
+  const wr = winRate / 100;
+  for (let s = 0; s < numSims; s++) {
+    let cap = startCapital;
+    const curve = [cap];
+    for (let t = 0; t < numTrades; t++) {
+      cap += Math.random() < wr ? avgWin : -avgLoss;
+      cap = Math.max(0, cap);
+      curve.push(cap);
+    }
+    results.push(curve);
+  }
+  return results;
+}
+
+function _percentile(sorted, p) {
+  const idx = Math.floor(p / 100 * (sorted.length - 1));
+  return sorted[Math.max(0, Math.min(idx, sorted.length - 1))];
+}
+
+function runMonteCarloUI() {
+  const d = _mcEvalData;
+  if (!d) { showToast('Load Evaluation tab first', 'error'); return; }
+  const s   = d.summary || {};
+  const rm  = d.risk_metrics || {};
+  const cp  = d.capital_stats || d.capital || {};
+
+  const winRate     = s.win_rate ?? 50;
+  const avgWin      = rm.avg_win_usdt  ?? 50;
+  const avgLoss     = rm.avg_loss_usdt ?? 30;
+  const startCap    = cp.current ?? cp.capital ?? 10000;
+  const numTrades   = parseInt(document.getElementById('mcTrades')?.value) || 250;
+  const numSims     = parseInt(document.getElementById('mcSims')?.value)   || 1000;
+
+  const results     = runMonteCarlo(winRate, avgWin, avgLoss, startCap, numTrades, numSims);
+  const labels      = Array.from({length: numTrades + 1}, (_, i) => i);
+
+  // Extract percentiles at each step
+  const p10 = [], p25 = [], p50 = [], p75 = [], p90 = [];
+  for (let t = 0; t <= numTrades; t++) {
+    const col = results.map(r => r[t]).sort((a, b) => a - b);
+    p10.push(_percentile(col, 10));
+    p25.push(_percentile(col, 25));
+    p50.push(_percentile(col, 50));
+    p75.push(_percentile(col, 75));
+    p90.push(_percentile(col, 90));
+  }
+
+  // Destroy previous chart
+  if (_mcChart) { _mcChart.destroy(); _mcChart = null; }
+  const ctx = document.getElementById('mcChart')?.getContext('2d');
+  if (!ctx) return;
+
+  _mcChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: '90th %ile', data: p90, borderColor: 'rgba(0,200,83,.5)',  backgroundColor: 'rgba(0,200,83,.07)', borderWidth: 1, pointRadius: 0, fill: false },
+        { label: '75th %ile', data: p75, borderColor: 'rgba(0,200,83,.35)', backgroundColor: 'rgba(0,200,83,.07)', borderWidth: 1, pointRadius: 0, fill: 1 },
+        { label: 'Median',    data: p50, borderColor: 'rgba(0,212,200,1)',  backgroundColor: 'transparent',        borderWidth: 2, pointRadius: 0, fill: false },
+        { label: '25th %ile', data: p25, borderColor: 'rgba(255,61,90,.35)',backgroundColor: 'rgba(255,61,90,.07)', borderWidth: 1, pointRadius: 0, fill: 4 },
+        { label: '10th %ile', data: p10, borderColor: 'rgba(255,61,90,.5)', backgroundColor: 'rgba(255,61,90,.07)', borderWidth: 1, pointRadius: 0, fill: false },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { labels: { color: '#5a6480', font: { size: 10 } } } },
+      scales: {
+        x: { ticks: { color: '#5a6480', font: { size: 9 }, maxTicksLimit: 10 }, grid: { color: 'rgba(30,35,48,.8)' } },
+        y: { ticks: { color: '#5a6480', font: { size: 9 }, callback: v => '$' + Math.round(v).toLocaleString() }, grid: { color: 'rgba(30,35,48,.8)' } }
+      }
+    }
+  });
+
+  // Summary stats
+  const finalCaps = results.map(r => r[numTrades]).sort((a, b) => a - b);
+  const probProfit   = Math.round(finalCaps.filter(c => c > startCap).length / numSims * 100);
+  const median       = _percentile(finalCaps, 50);
+  const worst10      = _percentile(finalCaps, 10);
+  const riskOfRuin   = Math.round(finalCaps.filter(c => c <= startCap * 0.5).length / numSims * 100);
+  const maxDDs       = results.map(curve => {
+    let peak = curve[0], maxDD = 0;
+    for (const v of curve) { if (v > peak) peak = v; if (peak > 0) maxDD = Math.max(maxDD, (peak - v) / peak * 100); }
+    return maxDD;
+  }).sort((a, b) => a - b);
+  const expectedMaxDD = _percentile(maxDDs, 50).toFixed(1);
+
+  const fmt = v => '$' + Math.round(v).toLocaleString();
+  const summCards = [
+    { lbl: 'P(Profit)', val: probProfit + '%', col: probProfit >= 60 ? 'var(--green)' : probProfit >= 40 ? 'var(--orange)' : 'var(--red)' },
+    { lbl: 'Median Capital', val: fmt(median), col: median >= startCap ? 'var(--green)' : 'var(--red)' },
+    { lbl: 'Worst 10%', val: fmt(worst10), col: 'var(--red)' },
+    { lbl: 'Exp. Max DD', val: expectedMaxDD + '%', col: parseFloat(expectedMaxDD) <= 20 ? 'var(--green)' : 'var(--orange)' },
+    { lbl: 'Risk of Ruin', val: riskOfRuin + '%', col: riskOfRuin <= 5 ? 'var(--green)' : riskOfRuin <= 20 ? 'var(--orange)' : 'var(--red)' },
+  ];
+  const summEl = document.getElementById('mcSummary');
+  if (summEl) {
+    summEl.innerHTML = summCards.map(c => `
+      <div class="eval-stat">
+        <div class="eval-stat-lbl">${c.lbl}</div>
+        <div class="eval-stat-val" style="color:${c.col}">${c.val}</div>
+      </div>`).join('');
   }
 }
 
@@ -3258,7 +3555,11 @@ async function refreshJournal() {
   journalEntries = data.entries || [];
   journalSummary = data.summary || {};
   updateJournalSummary(journalSummary);
-  renderJournalTable();
+  if (_jnlView === 'grid') {
+    renderJournalGrid();
+  } else {
+    renderJournalTable();
+  }
   renderProjection();
   // If no open positions remain, reset live equity to realized capital
   const hasOpen = journalEntries.some(e => e.status === 'OPEN');
@@ -3396,6 +3697,35 @@ function renderJournalTable() {
       ? `<span style="color:${e.sentiment_score>0.05?'var(--green)':e.sentiment_score<-0.05?'var(--red)':'var(--muted)'}">${e.sentiment_score>0?'+':''}${(e.sentiment_score*100).toFixed(0)}%</span>`
       : '<span class="no-data">—</span>';
 
+    // Trailing stop button (OPEN only)
+    const trailActive  = e.trailing_stop_enabled;
+    const stopMoved    = e.original_stop != null && e.stop !== e.original_stop;
+    const stopDisplay  = stopMoved
+      ? `<span class="stop-moved" title="Moved from ${fmtP(e.original_stop)}">${fmtP(e.stop)} 🔒</span>`
+      : fmtP(e.stop);
+    const trailBtnHtml = e.status === 'OPEN' ? `
+      <div style="position:relative;display:inline-block">
+        <button class="trail-btn${trailActive?' active':''}" id="trail-btn-${e.id}"
+          onclick="toggleTrailPopup('${e.id}',${trailActive})"
+          title="${trailActive?'Trailing SL active':'Enable trailing SL'}">
+          ${trailActive?'🔒 TSL':'TSL'}
+        </button>
+        <div class="trail-popup" id="trail-popup-${e.id}" style="display:none">
+          <label>Mode</label>
+          <select id="trail-mode-${e.id}">
+            <option value="breakeven"${(e.trailing_stop_mode||'breakeven')==='breakeven'?' selected':''}>Break-even lock</option>
+            <option value="trailing"${e.trailing_stop_mode==='trailing'?' selected':''}>Trail %</option>
+          </select>
+          <label>Trail %</label>
+          <input type="number" id="trail-pct-${e.id}" min="0.1" max="10" step="0.1"
+            value="${e.trailing_stop_pct||1.5}" style="width:100%"/>
+          <div style="display:flex;gap:5px">
+            <button onclick="saveTrailing('${e.id}',true)" style="flex:1;padding:3px;font-size:10px;border-radius:4px;background:var(--orange);color:#000;border:none;cursor:pointer;font-weight:700">Enable</button>
+            <button onclick="saveTrailing('${e.id}',false)" style="flex:1;padding:3px;font-size:10px;border-radius:4px;background:var(--surface);color:var(--muted);border:1px solid var(--border);cursor:pointer">Off</button>
+          </div>
+        </div>
+      </div>` : '';
+
     // Outcome actions (only for OPEN)
     const actions = e.status === 'OPEN' ? `
       <div class="outcome-actions">
@@ -3403,6 +3733,7 @@ function renderJournalTable() {
         <button class="act-btn act-win"  onclick="markOutcome('${e.id}','WIN')">✓W</button>
         <button class="act-btn act-loss" onclick="markOutcome('${e.id}','LOSS')">✗L</button>
         <button class="act-btn act-canc" onclick="markOutcome('${e.id}','CANCELLED')">○</button>
+        ${trailBtnHtml}
       </div>` : `<span class="no-data" style="font-size:10px">${e.exit_price ? fmtP(e.exit_price) : '—'}</span>`;
 
     const isFutures = e.market_type === 'futures';
@@ -3428,7 +3759,7 @@ function renderJournalTable() {
       <td>${e.mtf_aligned ? '<span class="mtf-ok">✓</span>' : '<span class="mtf-no">✗</span>'}</td>
       <td><span class="cf-badge ${cfCfg[0]}">${cfCfg[1]} ${e.confluence}</span></td>
       <td class="entry-c">${fmtP(e.entry)}</td>
-      <td class="stop-c">${fmtP(e.stop)}</td>
+      <td class="stop-c" id="stop-cell-${e.id}">${stopDisplay}</td>
       <td class="tgt-c">${fmtP(e.target)}</td>
       <td style="color:var(--purple);font-weight:600">${e.risk_reward ? e.risk_reward+':1' : '—'}</td>
       <td style="color:var(--orange);font-size:10.5px">${e.position_value ? '$'+e.position_value.toLocaleString('en',{maximumFractionDigits:0}) : '<span class="no-data">—</span>'}</td>
@@ -3443,6 +3774,156 @@ function renderJournalTable() {
       <td>${actions}</td>
     </tr>`;
   }).join('');
+}
+
+function toggleTrailPopup(id, isActive) {
+  // Close any other open popups first
+  document.querySelectorAll('.trail-popup').forEach(p => {
+    if (p.id !== 'trail-popup-' + id) p.style.display = 'none';
+  });
+  const popup = document.getElementById('trail-popup-' + id);
+  if (popup) popup.style.display = popup.style.display === 'none' ? 'block' : 'none';
+}
+
+async function saveTrailing(id, enable) {
+  const mode = document.getElementById('trail-mode-' + id)?.value || 'breakeven';
+  const pct  = parseFloat(document.getElementById('trail-pct-' + id)?.value) || 1.5;
+  const res  = await fetch(`/api/journal/${id}/trailing?enabled=${enable}&mode=${mode}&pct=${pct}`, { method: 'POST' });
+  const data = await res.json();
+  if (data.ok) {
+    showToast(enable ? `Trailing SL enabled (${mode})` : 'Trailing SL disabled', 'info');
+    // Close popup and refresh
+    const popup = document.getElementById('trail-popup-' + id);
+    if (popup) popup.style.display = 'none';
+    await refreshJournal();
+  } else {
+    showToast('Failed: ' + (data.reason || 'unknown'), 'error');
+  }
+}
+
+// Close trail popups when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.trail-btn') && !e.target.closest('.trail-popup')) {
+    document.querySelectorAll('.trail-popup').forEach(p => p.style.display = 'none');
+  }
+});
+
+function toggleJnlView() {
+  _jnlView = _jnlView === 'table' ? 'grid' : 'table';
+  localStorage.setItem('jnlView', _jnlView);
+  const btn = document.getElementById('jnlViewBtn');
+  if (btn) {
+    btn.textContent = _jnlView === 'grid' ? '☰' : '⊞';
+    btn.classList.toggle('active', _jnlView === 'grid');
+    btn.title = _jnlView === 'grid' ? 'Switch to table view' : 'Switch to grid view';
+  }
+  if (_jnlView === 'grid') {
+    renderJournalGrid();
+  } else {
+    // Restore table wrap visibility and remove grid wrap if present
+    const tw = document.querySelector('.jnl-table-wrap');
+    const gw = document.getElementById('jnlGridWrap');
+    if (tw) tw.style.display = '';
+    if (gw) gw.remove();
+    renderJournalTable();
+  }
+}
+
+function renderJournalGrid() {
+  // Hide the table wrap, inject grid wrap instead
+  const tableWrap = document.querySelector('.jnl-table-wrap');
+  if (tableWrap) tableWrap.style.display = 'none';
+
+  let gridWrap = document.getElementById('jnlGridWrap');
+  if (!gridWrap) {
+    gridWrap = document.createElement('div');
+    gridWrap.id = 'jnlGridWrap';
+    gridWrap.className = 'jnl-grid-wrap';
+    tableWrap.parentNode.insertBefore(gridWrap, tableWrap.nextSibling);
+  }
+
+  if (!journalEntries.length) {
+    gridWrap.innerHTML = '<div class="jnl-empty">No signals logged yet — run a scan to auto-populate</div>';
+    return;
+  }
+
+  const cards = journalEntries.map(e => {
+    const sigIcon = {BULLISH:'▲', BEARISH:'▼', NEUTRAL:'—'}[e.signal] || '—';
+    const sigCls  = {BULLISH:'b-bull', BEARISH:'b-bear', NEUTRAL:'b-neut'}[e.signal] || 'b-neut';
+    const stCls   = {OPEN:'st-open', WIN:'st-win', LOSS:'st-loss', CANCELLED:'st-canc'}[e.status] || 'st-open';
+    const stIcon  = {OPEN:'●', WIN:'✓', LOSS:'✗', CANCELLED:'○'}[e.status] || '●';
+
+    const pnl = e.pnl_pct;
+    const pnlUsdt = e.pnl;
+    const pnlStr = pnl != null
+      ? `<span style="color:${pnl>=0?'var(--green)':'var(--red)'};font-weight:700">${pnl>=0?'+':''}${pnl}%</span>
+         <span style="color:${pnl>=0?'var(--green)':'var(--red)'};font-size:10px;margin-left:4px">${pnlUsdt!=null?(pnlUsdt>=0?'+':'')+`$${Math.abs(pnlUsdt).toFixed(2)}`:''}</span>`
+      : (e.status === 'OPEN'
+          ? `<span style="color:var(--muted);font-size:10px">awaiting…</span>`
+          : '<span class="no-data">—</span>');
+
+    const d = new Date(e.logged_at);
+    const timeAgo = (() => {
+      const sec = Math.floor((Date.now() - d) / 1000);
+      if (sec < 60) return sec + 's ago';
+      if (sec < 3600) return Math.floor(sec/60) + 'm ago';
+      if (sec < 86400) return Math.floor(sec/3600) + 'h ago';
+      return Math.floor(sec/86400) + 'd ago';
+    })();
+
+    const isFutures = e.market_type === 'futures';
+    const mktBadge = isFutures
+      ? `<span class="badge badge-futures" style="font-size:9px">PERP</span>`
+      : `<span style="font-size:9px;color:var(--muted)">SPOT</span>`;
+    const levBadge = (e.leverage && e.leverage > 1)
+      ? `<span class="lev-badge">${e.leverage}x</span>`
+      : '';
+
+    const actions = e.status === 'OPEN' ? `
+      <div class="tc-actions">
+        <input class="exit-input" id="ep-${e.id}" type="number" placeholder="Exit $" step="any" style="width:72px"/>
+        <button class="act-btn act-win"  onclick="markOutcome('${e.id}','WIN')">✓W</button>
+        <button class="act-btn act-loss" onclick="markOutcome('${e.id}','LOSS')">✗L</button>
+        <button class="act-btn act-canc" onclick="markOutcome('${e.id}','CANCELLED')">○</button>
+      </div>` : '';
+
+    return `<div class="trade-card ${e.status}">
+      <div class="tc-header">
+        <span class="tc-sym" onclick="openChartFromJournal('${e.symbol}')">${e.symbol}</span>
+        ${mktBadge}${levBadge}
+        <span class="badge ${sigCls}" style="font-size:10px">${sigIcon} ${e.signal}</span>
+        <span class="tc-spacer"></span>
+        ${gradeBadge(e.grade)}
+        <span class="status-badge ${stCls}" style="font-size:9px">${stIcon} ${e.status}</span>
+      </div>
+      <div class="tc-prices">
+        <div class="tc-price-cell">
+          <div class="tc-price-lbl">Entry</div>
+          <div class="tc-price-val">${fmtP(e.entry)}</div>
+        </div>
+        <div class="tc-price-cell">
+          <div class="tc-price-lbl">Stop</div>
+          <div class="tc-price-val" style="color:var(--red)">${fmtP(e.stop)}</div>
+        </div>
+        <div class="tc-price-cell">
+          <div class="tc-price-lbl">Target</div>
+          <div class="tc-price-val" style="color:var(--green)">${fmtP(e.target)}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:10.5px">
+        <span style="color:var(--purple)">${e.risk_reward ? e.risk_reward+':1 R:R' : ''}</span>
+        <span id="live-pnl-${e.id}">${pnlStr}</span>
+      </div>
+      <div class="tc-footer">
+        <span class="tc-time">${timeAgo}</span>
+        <span class="tc-meta">${e.timeframe||'4h'}</span>
+        <span class="tc-meta">${probCell(e.probability)}</span>
+        ${actions}
+      </div>
+    </div>`;
+  }).join('');
+
+  gridWrap.innerHTML = `<div class="jnl-grid">${cards}</div>`;
 }
 
 async function markOutcome(entryId, status) {
@@ -3496,12 +3977,75 @@ function showToast(msg, type='info') {
 //  KEYBOARD
 // ═══════════════════════════════════════════════════════════
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeModal(); closeJournal(); }
+  if (e.key === 'Escape') { closeModal(); switchPage('scanner'); }
   if (e.key === 'r' && document.activeElement.tagName !== 'INPUT') triggerScan();
   if (e.key === 'n' && document.activeElement.tagName !== 'INPUT') toggleNews();
-  if (e.key === 'j' && document.activeElement.tagName !== 'INPUT') openJournal();
-  if (e.key === 'd' && document.activeElement.tagName !== 'INPUT') openDocs();
+  if (e.key === 'j' && document.activeElement.tagName !== 'INPUT') switchPage('journal');
+  if (e.key === 'd' && document.activeElement.tagName !== 'INPUT') switchPage('docs');
+  if (e.key === 'e' && document.activeElement.tagName !== 'INPUT') switchPage('eval');
 });
+
+// ═══════════════════════════════════════════════════════════
+//  THEME TOGGLE
+// ═══════════════════════════════════════════════════════════
+function toggleTheme() {
+  const body = document.body;
+  const btn = document.getElementById('themeToggleBtn');
+  const isLight = body.classList.toggle('light-theme');
+  
+  // Update button icon
+  btn.textContent = isLight ? '🌙' : '☀️';
+  btn.title = isLight ? 'Switch to dark theme' : 'Switch to light theme';
+  
+  // Save preference to localStorage
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  
+  // Update chart colors if charts exist
+  updateChartTheme(isLight);
+}
+
+function updateChartTheme(isLight) {
+  // Update chart background and text colors for existing charts
+  const chartBg = isLight ? '#ffffff' : '#13161e';
+  const chartText = isLight ? '#1a202c' : '#c9d1e0';
+  const chartGrid = isLight ? '#e2e8f0' : '#1e2330';
+  
+  // Update main chart if it exists
+  if (chartInstance) {
+    chartInstance.applyOptions({
+      layout: { background: { color: chartBg }, textColor: chartText },
+      grid: { vertLines: { color: chartGrid }, horzLines: { color: chartGrid } },
+      rightPriceScale: { borderColor: chartGrid },
+      timeScale: { borderColor: chartGrid }
+    });
+  }
+  
+  // Update all chart instances
+  chartInstances.forEach(chart => {
+    if (chart) {
+      chart.applyOptions({
+        layout: { background: { color: chartBg }, textColor: chartText },
+        grid: { vertLines: { color: chartGrid }, horzLines: { color: chartGrid } },
+        rightPriceScale: { borderColor: chartGrid },
+        timeScale: { borderColor: chartGrid }
+      });
+    }
+  });
+}
+
+function loadTheme() {
+  const savedTheme = localStorage.getItem('theme');
+  const btn = document.getElementById('themeToggleBtn');
+  
+  if (savedTheme === 'light') {
+    document.body.classList.add('light-theme');
+    btn.textContent = '🌙';
+    btn.title = 'Switch to dark theme';
+  } else {
+    btn.textContent = '☀️';
+    btn.title = 'Switch to light theme';
+  }
+}
 
 // ═══════════════════════════════════════════════════════════
 //  INIT
@@ -3514,6 +4058,8 @@ fetch('/api/journal').then(r => r.json()).then(d => {
 }).catch(() => {});
 // Load capital state
 loadCapital();
+// Load saved theme
+loadTheme();
 </script>
 </body>
 </html>

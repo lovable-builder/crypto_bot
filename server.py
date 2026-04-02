@@ -375,14 +375,50 @@ async def _run_price_check() -> dict:
             pct_to_tp = pct_to_sl = None
 
         live_positions.append({
-            "id":          entry["id"],
-            "symbol":      entry["symbol"],
-            "price":       price,
-            "unreal_pct":  round(unreal_pct, 3),
-            "unreal_usdt": round(unreal_usdt, 2),
-            "pct_to_tp":   round(pct_to_tp, 2) if pct_to_tp is not None else None,
-            "pct_to_sl":   round(pct_to_sl, 2) if pct_to_sl is not None else None,
+            "id":              entry["id"],
+            "symbol":          entry["symbol"],
+            "price":           price,
+            "unreal_pct":      round(unreal_pct, 3),
+            "unreal_usdt":     round(unreal_usdt, 2),
+            "pct_to_tp":       round(pct_to_tp, 2) if pct_to_tp is not None else None,
+            "pct_to_sl":       round(pct_to_sl, 2) if pct_to_sl is not None else None,
+            "trailing_active": entry.get("trailing_stop_enabled", False),
+            "stop":            sl,
         })
+
+        # ── Trailing stop update ──────────────────────────────
+        if entry.get("trailing_stop_enabled") and entry_p and price:
+            mode         = entry.get("trailing_stop_mode", "breakeven")
+            risk_amt     = entry.get("risk_amount") or 0
+            current_stop = sl  # may have been updated from a previous cycle
+
+            new_stop = None
+            if mode == "breakeven":
+                # Move stop to entry when trade is at least 1R in profit
+                if unreal_usdt >= risk_amt > 0 and current_stop != entry_p:
+                    new_stop = entry_p
+            elif mode == "trailing":
+                trail_pct = entry.get("trailing_stop_pct", 1.5) / 100
+                if sig == "BULLISH":
+                    candidate = price * (1 - trail_pct)
+                    if candidate > current_stop:   # only moves up
+                        new_stop = candidate
+                else:  # BEARISH
+                    candidate = price * (1 + trail_pct)
+                    if candidate < current_stop:   # only moves down
+                        new_stop = candidate
+
+            if new_stop is not None:
+                updated_e = jnl.update_stop(entry["id"], new_stop)
+                if updated_e:
+                    # refresh sl so SL/TP hit check below uses the new value
+                    sl = updated_e["stop"]
+                    # update live_positions entry already appended above
+                    for pos in live_positions:
+                        if pos["id"] == entry["id"]:
+                            pos["stop"] = sl
+                            pos["trailing_active"] = True
+                            break
 
         # SL/TP hit check
         if not tp or not sl:
@@ -633,6 +669,17 @@ async def api_journal_update(entry_id: str, status: str,
     return {"ok": False, "reason": "entry not found"}
 
 
+@app.post("/api/journal/{entry_id}/trailing")
+async def api_journal_trailing(entry_id: str,
+                                enabled: bool = True,
+                                mode: str = "breakeven",
+                                pct: float = 1.5):
+    updated = jnl.set_trailing(entry_id, enabled, mode, pct)
+    if updated:
+        return {"ok": True, "entry": updated}
+    return {"ok": False, "reason": "entry not found or not OPEN"}
+
+
 @app.get("/api/capital")
 async def api_capital():
     """Current capital state and position sizing."""
@@ -751,6 +798,25 @@ async def api_journal_reset():
     result = jnl.reset_journal()
     await broadcast({"type": "journal_update", "summary": jnl.get_summary()})
     return result
+
+
+@app.post("/api/journal/close-all")
+async def api_journal_close_all():
+    """Mark all OPEN trades as CANCELLED."""
+    entries = jnl.get_entries(500)
+    open_ids = [e["id"] for e in entries if e.get("status") == "OPEN"]
+    count = 0
+    for eid in open_ids:
+        result = jnl.update_entry(eid, "CANCELLED", notes="bulk close-all")
+        if result:
+            count += 1
+    await broadcast({
+        "type":    "journal_update",
+        "summary": jnl.get_summary(),
+        "capital": cap_mgr.get_state(),
+        "reload":  True,
+    })
+    return {"ok": True, "closed": count}
 
 
 @app.get("/api/sentiment/{coin}")

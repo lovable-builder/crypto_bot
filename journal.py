@@ -103,6 +103,12 @@ def _make_entry(opp: dict) -> dict:
         "pnl_raw":          None,     # actual USDT P&L before any cap (audit trail)
         "risk_exceeded":    False,    # True if raw loss > 2× risk_amount
         "notes":            "",
+        # trailing stop fields (off by default)
+        "trailing_stop_enabled":  False,
+        "trailing_stop_mode":     "breakeven",   # "breakeven" | "trailing"
+        "trailing_stop_pct":      1.5,           # % distance for trailing mode
+        "original_stop":          stop_p,        # original SL — never mutated
+        "stop_updated_at":        None,
     }
 
 
@@ -211,6 +217,38 @@ def update_entry(entry_id: str, status: str,
 
                 _save(entries)
                 logger.info(f"Journal: updated {entry_id} → {status}")
+                return e
+    return None
+
+
+def update_stop(entry_id: str, new_stop: float) -> Optional[dict]:
+    """Partially update the stop price of an OPEN entry (used by trailing stop logic)."""
+    with _lock:
+        entries = _load()
+        for e in entries:
+            if e["id"] == entry_id and e.get("status") == "OPEN":
+                e["stop"] = round(new_stop, 8)
+                e["stop_updated_at"] = datetime.now(timezone.utc).isoformat()
+                _save(entries)
+                logger.info(f"Journal: trailing stop updated {entry_id} stop→{new_stop:.6g}")
+                return e
+    return None
+
+
+def set_trailing(entry_id: str, enabled: bool,
+                 mode: str = "breakeven", pct: float = 1.5) -> Optional[dict]:
+    """Enable / configure trailing stop for an OPEN entry."""
+    with _lock:
+        entries = _load()
+        for e in entries:
+            if e["id"] == entry_id and e.get("status") == "OPEN":
+                e["trailing_stop_enabled"] = enabled
+                e["trailing_stop_mode"]    = mode
+                e["trailing_stop_pct"]     = pct
+                # record the original stop the first time trailing is activated
+                if enabled and not e.get("original_stop"):
+                    e["original_stop"] = e.get("stop")
+                _save(entries)
                 return e
     return None
 
