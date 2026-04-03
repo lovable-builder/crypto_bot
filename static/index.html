@@ -439,18 +439,8 @@ tr.clickable { cursor: pointer; }
   font-size: 10px; font-weight: 600; cursor: pointer; background: var(--bg);
   transition: background .15s;
 }
-.act-win  { color: var(--green); border-color: rgba(0,200,83,.4); }
-.act-win:hover  { background: rgba(0,200,83,.15); }
-.act-loss { color: var(--red);   border-color: rgba(255,61,90,.4); }
-.act-loss:hover { background: rgba(255,61,90,.15); }
-.act-canc { color: var(--muted); }
-.act-canc:hover { background: rgba(90,100,128,.15); }
-.exit-input {
-  width: 80px; background: var(--bg); color: var(--text);
-  border: 1px solid var(--border); border-radius: 5px;
-  padding: 2px 6px; font-size: 10px; outline: none;
-}
-.exit-input:focus { border-color: var(--cyan); }
+.act-del  { color: var(--red); border-color: rgba(255,61,90,.3); opacity: .6; padding: 2px 6px; }
+.act-del:hover  { background: rgba(255,61,90,.15); opacity: 1; }
 
 .jnl-empty { text-align: center; padding: 60px; color: var(--muted); font-size: 13px; }
 
@@ -1969,16 +1959,22 @@ function updateLivePrices(positions, checkedAt) {
   if (jsDelta) jsDelta.innerHTML = deltaStr;
 }
 
-async function checkPricesNow() {
+async function checkPricesNow(silent = false) {
   const btn = document.getElementById('checkNowBtn');
   if (btn) { btn.disabled = true; btn.textContent = '⟳ Checking…'; }
   try {
     const res = await fetch('/api/monitor/check', { method: 'POST' });
     const data = await res.json();
-    if (data.closed > 0) showToast(`Price check: ${data.closed} trade(s) closed`);
-    else showToast(`Price check complete — ${data.open} open position(s) monitored`);
+    // Apply live PnL immediately from REST response — don't wait for WS broadcast
+    if (data.positions) updateLivePrices(data.positions, data.checked_at);
+    if (data.closed > 0) {
+      await refreshJournal();
+      if (!silent) showToast(`Price check: ${data.closed} trade(s) closed`);
+    } else if (!silent) {
+      showToast(`Price check complete — ${data.open} open position(s) monitored`);
+    }
   } catch (e) {
-    showToast('Price check failed', 'error');
+    if (!silent) showToast('Price check failed', 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '⟳ Check Now'; }
   }
@@ -2798,6 +2794,8 @@ async function _enterJournalPage() {
     btn.title = _jnlView === 'grid' ? 'Switch to table view' : 'Switch to grid view';
   }
   await refreshJournal();
+  // Immediately fetch live prices so PnL shows without waiting for the background monitor
+  checkPricesNow(true);
 }
 
 function openJournal() { switchPage('journal'); }
@@ -3726,15 +3724,11 @@ function renderJournalTable() {
         </div>
       </div>` : '';
 
-    // Outcome actions (only for OPEN)
     const actions = e.status === 'OPEN' ? `
       <div class="outcome-actions">
-        <input class="exit-input" id="ep-${e.id}" type="number" placeholder="Exit $" step="any" />
-        <button class="act-btn act-win"  onclick="markOutcome('${e.id}','WIN')">✓W</button>
-        <button class="act-btn act-loss" onclick="markOutcome('${e.id}','LOSS')">✗L</button>
-        <button class="act-btn act-canc" onclick="markOutcome('${e.id}','CANCELLED')">○</button>
         ${trailBtnHtml}
-      </div>` : `<span class="no-data" style="font-size:10px">${e.exit_price ? fmtP(e.exit_price) : '—'}</span>`;
+        <button class="act-btn act-del" onclick="deleteEntry('${e.id}')" title="Delete entry">🗑</button>
+      </div>` : `<span class="no-data" style="font-size:10px">${e.exit_price ? fmtP(e.exit_price) : '—'}<button class="act-btn act-del" onclick="deleteEntry('${e.id}')" title="Delete entry" style="margin-left:4px">🗑</button></span>`;
 
     const isFutures = e.market_type === 'futures';
     const mktBadge = isFutures
@@ -3879,13 +3873,7 @@ function renderJournalGrid() {
       ? `<span class="lev-badge">${e.leverage}x</span>`
       : '';
 
-    const actions = e.status === 'OPEN' ? `
-      <div class="tc-actions">
-        <input class="exit-input" id="ep-${e.id}" type="number" placeholder="Exit $" step="any" style="width:72px"/>
-        <button class="act-btn act-win"  onclick="markOutcome('${e.id}','WIN')">✓W</button>
-        <button class="act-btn act-loss" onclick="markOutcome('${e.id}','LOSS')">✗L</button>
-        <button class="act-btn act-canc" onclick="markOutcome('${e.id}','CANCELLED')">○</button>
-      </div>` : '';
+    const actions = `<button class="act-btn act-del" onclick="deleteEntry('${e.id}')" title="Delete entry">🗑</button>`;
 
     return `<div class="trade-card ${e.status}">
       <div class="tc-header">
@@ -3926,17 +3914,16 @@ function renderJournalGrid() {
   gridWrap.innerHTML = `<div class="jnl-grid">${cards}</div>`;
 }
 
-async function markOutcome(entryId, status) {
-  const exitInput = document.getElementById('ep-' + entryId);
-  const exitPrice = exitInput ? parseFloat(exitInput.value) || null : null;
 
-  const res = await fetch(`/api/journal/${entryId}?status=${status}${exitPrice ? '&exit_price='+exitPrice : ''}`, {method:'PUT'});
+async function deleteEntry(entryId) {
+  if (!confirm('Delete this trade entry? This cannot be undone.')) return;
+  const res = await fetch(`/api/journal/${entryId}`, { method: 'DELETE' });
   const data = await res.json();
   if (data.ok) {
-    showToast(`Marked as ${status}`, status === 'WIN' ? 'info' : 'error');
+    showToast('Entry deleted', 'info');
     await refreshJournal();
   } else {
-    showToast('Update failed', 'error');
+    showToast('Delete failed', 'error');
   }
 }
 

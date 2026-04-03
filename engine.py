@@ -30,7 +30,7 @@ import asyncio
 import logging
 import numpy as np
 from typing import Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from config import BotConfig, get_config
 from models import PortfolioState, Trade, Signal, Side
@@ -200,10 +200,14 @@ class BotEngine:
             cfg_atr=self.cfg.strategy.atr_period,
         )
 
-        # 4. Monitor open trades first (stops / targets)
-        await self._monitor_open_trades(symbol, candles[-1], snap)
+        # 4. Peek at the current bar's signal (no side-effects) so the monitor
+        #    can use it for counter-signal detection on open trades.
+        current_signal = self.strategy.peek_signal(symbol, snap)
 
-        # 5. Generate new signal (only if no open trade in this symbol)
+        # 5. Monitor open trades (stops / targets / counter-signal / max-hold)
+        await self._monitor_open_trades(symbol, candles[-1], snap, current_signal)
+
+        # 6. Generate new signal (only if no open trade in this symbol)
         open_symbols = {t.symbol for t in self.portfolio.open_trades.values()}
         if symbol in open_symbols:
             return
@@ -224,8 +228,12 @@ class BotEngine:
         symbol: str,
         latest_candle,
         snap: IndicatorSnapshot,
+        current_signal: Optional[Signal] = None,
     ):
-        """Check stops and targets for all open trades in this symbol."""
+        """Check stops and targets for all open trades in this symbol.
+
+        Exit priority: trailing-stop update → SL → TP → counter-signal → max-hold
+        """
         trades_to_close = []
 
         for trade_id, trade in list(self.portfolio.open_trades.items()):
@@ -254,6 +262,24 @@ class BotEngine:
             )
             if tp_hit:
                 trades_to_close.append((trade, reason, exit_price))
+                continue
+
+            # Counter-signal exit: momentum has reversed, close the trade
+            if current_signal is not None:
+                is_counter = (
+                    (trade.side == Side.LONG  and current_signal.side == Side.SHORT) or
+                    (trade.side == Side.SHORT and current_signal.side == Side.LONG)
+                )
+                if is_counter:
+                    trades_to_close.append((trade, "counter_signal", latest_candle.close))
+                    continue
+
+            # Max-hold backstop: kill zombie trades that outlived the momentum window
+            if trade.entry_time is not None:
+                elapsed_secs = (latest_candle.timestamp - trade.entry_time).total_seconds()
+                candles_held = int(elapsed_secs / self._tf_seconds())
+                if candles_held >= self.cfg.strategy.max_hold_candles:
+                    trades_to_close.append((trade, "max_hold_time", latest_candle.close))
 
         for trade, reason, exit_price in trades_to_close:
             await self._close_trade(trade, exit_price, reason)
@@ -304,6 +330,13 @@ class BotEngine:
 
             if order.status.value in ("FILLED", "OPEN"):
                 fill_price = order.filled_price or signal.entry_price
+                # Use actual filled qty to avoid P&L errors on partial fills
+                filled_qty = order.filled_qty if order.filled_qty > 0 else size_result.quantity
+                if filled_qty < size_result.quantity:
+                    logger.warning(
+                        "Partial fill on %s: intended %.6f, filled %.6f",
+                        signal.symbol, size_result.quantity, filled_qty,
+                    )
                 trade = Trade(
                     symbol=signal.symbol,
                     side=signal.side,
@@ -311,8 +344,8 @@ class BotEngine:
                     signal_id=signal.id,
                     entry_order=order,
                     entry_price=fill_price,
-                    quantity=size_result.quantity,
-                    entry_time=datetime.utcnow(),
+                    quantity=filled_qty,
+                    entry_time=datetime.now(timezone.utc),
                     stop_price=signal.stop_price,
                     target_price=signal.target_price,
                 )
@@ -441,13 +474,16 @@ class BotEngine:
             f"Trades: {len(p.closed_trades)}"
         )
 
-    async def _sleep_until_next_candle(self):
-        """Calculate time until the next candle close and sleep."""
-        tf_seconds = {
-            "1m": 60, "5m": 300, "15m": 900, "1h": 3600,
-            "4h": 14400, "1d": 86400,
+    def _tf_seconds(self) -> int:
+        """Timeframe string → seconds. Used for sleep alignment and candle-count math."""
+        return {
+            "1m": 60, "5m": 300, "15m": 900,
+            "1h": 3600, "4h": 14400, "1d": 86400,
         }.get(self.cfg.universe.timeframe, 3600)
 
+    async def _sleep_until_next_candle(self):
+        """Calculate time until the next candle close and sleep."""
+        tf_seconds = self._tf_seconds()
         now     = datetime.utcnow().timestamp()
         elapsed = now % tf_seconds
         sleep_s = tf_seconds - elapsed + 5  # +5s buffer for candle to finalize

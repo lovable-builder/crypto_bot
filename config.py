@@ -69,6 +69,10 @@ class EMAStrategyConfig:
     # Minimum bars since last signal (avoid overtrading)
     signal_cooldown_bars: int = 3
 
+    # Maximum candles a trade may stay open without hitting SL, TP, or counter-signal
+    # Default: 72 candles × 4h = 12 days
+    max_hold_candles: int = 72
+
 
 # ─── Risk Management ─────────────────────────────────────────
 @dataclass
@@ -90,6 +94,7 @@ class RiskConfig:
     # Recovery mode (post-drawdown)
     recovery_position_size_pct: float = 50.0  # Trade at 50% size in recovery
     recovery_win_streak_required: int = 5     # 5 wins needed to exit recovery
+    max_recovery_days: int = 30               # Force-exit recovery after this many calendar days
 
     # Slippage & fees (Binance spot)
     estimated_slippage_pct: float = 0.05

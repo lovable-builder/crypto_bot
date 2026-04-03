@@ -96,7 +96,12 @@ async def enrich_with_sentiment(results: List[dict]) -> List[dict]:
     top_coins = list({_base_coin(r["symbol"]) for r in results[:25]})
     logger.info(f"Fetching sentiment for {len(top_coins)} coins…")
 
-    sentiments = await news_client.get_batch_sentiment(top_coins)
+    try:
+        sentiments = await news_client.get_batch_sentiment(top_coins)
+    except Exception as sent_err:
+        logger.warning("Sentiment fetch failed: %s — all signals will use MIXED confluence", sent_err)
+        await broadcast({"type": "warning", "message": "Sentiment data unavailable — signal grades may be lower than usual"})
+        sentiments = {}
 
     for r in results:
         coin = _base_coin(r["symbol"])
@@ -167,7 +172,7 @@ async def run_spot_scan(timeframe: str = "4h", max_pairs: int = 80):
         scan_status.update({
             "scanning":      False,
             "last_scan":     datetime.now(timezone.utc).isoformat(),
-            "total_scanned": len(latest_spot_results),
+            "total_scanned": len(enriched),
             "progress":      {"done": max_pairs, "total": max_pairs},
         })
         logged = 0
@@ -184,17 +189,15 @@ async def run_spot_scan(timeframe: str = "4h", max_pairs: int = 80):
                 "daily_used_pct":   budget["daily_used_pct"],
             })
         else:
-            open_count = len([e for e in jnl.get_entries(500) if e.get("status") == "OPEN"])
-            for r in latest_spot_results:
-                if open_count >= cap_mgr.MAX_CONCURRENT_TRADES:
-                    logger.info(f"Concurrent trade limit reached ({open_count}/{cap_mgr.MAX_CONCURRENT_TRADES}) — skipping spot logging")
-                    break
+            # Iterate local ref — avoids race with concurrent reads of latest_spot_results
+            for r in enriched:
                 r["timeframe"] = timeframe
                 r["dynamic_risk_pct"] = budget["per_trade_risk_pct"]
-                entry = jnl.log_signal(r)
+                if r.get("signal") == "BEARISH":
+                    continue  # spot markets cannot short
+                entry = jnl.log_signal(r)   # limit + budget enforced atomically inside
                 if entry:
                     logged += 1
-                    open_count += 1
         if logged:
             logger.info(f"Journal: auto-logged {logged} spot signals (risk={budget['per_trade_risk_pct']}%/trade)")
             await broadcast({"type": "journal_update", "summary": jnl.get_summary(),
@@ -203,7 +206,7 @@ async def run_spot_scan(timeframe: str = "4h", max_pairs: int = 80):
         await broadcast({
             "type":   "scan_results",
             "market": "spot",
-            "data":   latest_spot_results,
+            "data":   enriched,
             "status": scan_status,
         })
         logger.info(f"Spot scan: broadcast {len(latest_spot_results)} results")
@@ -243,7 +246,7 @@ async def run_futures_scan(timeframe: str = "4h", max_pairs: int = 50):
         scan_status.update({
             "futures_scanning":  False,
             "futures_last_scan": datetime.now(timezone.utc).isoformat(),
-            "futures_total":     len(latest_futures_results),
+            "futures_total":     len(enriched),
         })
         logged = 0
         budget = cap_mgr.get_daily_budget()
@@ -253,17 +256,13 @@ async def run_futures_scan(timeframe: str = "4h", max_pairs: int = 50):
                 f"({budget['daily_loss_usdt']:.2f}/{budget['daily_cap_usdt']:.2f} USDT)"
             )
         else:
-            open_count = len([e for e in jnl.get_entries(500) if e.get("status") == "OPEN"])
-            for r in latest_futures_results:
-                if open_count >= cap_mgr.MAX_CONCURRENT_TRADES:
-                    logger.info(f"Concurrent trade limit reached ({open_count}/{cap_mgr.MAX_CONCURRENT_TRADES}) — skipping futures logging")
-                    break
+            # Iterate local ref — avoids race with concurrent reads of latest_futures_results
+            for r in enriched:
                 r["timeframe"] = timeframe
                 r["dynamic_risk_pct"] = budget["per_trade_risk_pct"]
-                entry = jnl.log_signal(r)
+                entry = jnl.log_signal(r)   # limit + budget enforced atomically inside
                 if entry:
                     logged += 1
-                    open_count += 1
         if logged:
             logger.info(f"Journal: auto-logged {logged} futures signals (risk={budget['per_trade_risk_pct']}%/trade)")
             await broadcast({"type": "journal_update", "summary": jnl.get_summary(),
@@ -272,7 +271,7 @@ async def run_futures_scan(timeframe: str = "4h", max_pairs: int = 50):
         await broadcast({
             "type":   "scan_results",
             "market": "futures",
-            "data":   latest_futures_results,
+            "data":   enriched,
             "status": scan_status,
         })
         logger.info(f"Futures scan: broadcast {len(latest_futures_results)} results")
@@ -313,6 +312,23 @@ async def _auto_scan_loop():
         await asyncio.sleep(10)   # stagger to avoid rate limiting
         logger.info("Auto-scan triggered (futures)")
         await run_futures_scan(timeframe=scan_status.get("timeframe", "4h"))
+
+
+async def _reconcile_loop():
+    """
+    Hourly rebuild of capital.json from journal to catch any sync drift.
+    Guards against the silent failure mode where capital update throws an
+    exception after a trade closes (journal updated, capital not).
+    """
+    while True:
+        await asyncio.sleep(3600)
+        try:
+            entries = jnl.get_entries()
+            closed  = [e for e in entries if e.get("status") in ("WIN", "LOSS")]
+            cap_mgr.rebuild_from_journal(closed)
+            logger.info("Hourly reconcile: capital synced from %d closed trades", len(closed))
+        except Exception as e:
+            logger.warning("Hourly reconcile failed: %s", e)
 
 
 PRICE_MONITOR_INTERVAL = 60   # check SL/TP every 60 seconds
@@ -448,6 +464,31 @@ async def _run_price_check() -> dict:
                 logger.info(f"Price monitor: {entry['symbol']} → {hit} "
                             f"(price={price}, exit={exit_price})")
 
+        # Counter-signal exit: if the latest scan reversed direction, close at market
+        elif price:
+            market = entry.get("market_type", "spot")
+            results_list = latest_futures_results if market == "futures" else latest_spot_results
+            scan_match = next((r for r in results_list if r["symbol"] == entry["symbol"]), None)
+            if scan_match:
+                is_counter = (
+                    (sig == "BULLISH" and scan_match.get("signal") == "BEARISH") or
+                    (sig == "BEARISH" and scan_match.get("signal") == "BULLISH")
+                )
+                if is_counter:
+                    exit_status = "WIN" if (
+                        (sig == "BULLISH" and price >= entry_p) or
+                        (sig == "BEARISH" and price <= entry_p)
+                    ) else "LOSS"
+                    updated = jnl.update_entry(entry["id"], exit_status, price,
+                                               notes="momentum reversal — counter-signal")
+                    if updated:
+                        closed_count += 1
+                        logger.info(
+                            f"Price monitor: {entry['symbol']} → momentum exit "
+                            f"({exit_status}, counter={scan_match['signal']}, "
+                            f"score={scan_match.get('score')})"
+                        )
+
     # Always broadcast live prices / unrealized PnL to UI
     checked_at = datetime.now(timezone.utc).isoformat()
     await broadcast({
@@ -464,7 +505,13 @@ async def _run_price_check() -> dict:
             "reload":  True,
         })
 
-    return {"open": len(open_entries), "closed": closed_count, "prices": prices}
+    return {
+        "open":       len(open_entries),
+        "closed":     closed_count,
+        "prices":     prices,
+        "positions":  live_positions,
+        "checked_at": checked_at,
+    }
 
 
 async def _price_monitor_loop():
@@ -527,9 +574,10 @@ async def lifespan(app: FastAPI):
         logger.warning(f"Capital rebuild on startup failed: {e}")
 
     # Background tasks
-    scan_task    = asyncio.create_task(_auto_scan_loop())
-    news_task    = asyncio.create_task(_news_refresh_loop())
-    monitor_task = asyncio.create_task(_price_monitor_loop())
+    scan_task       = asyncio.create_task(_auto_scan_loop())
+    news_task       = asyncio.create_task(_news_refresh_loop())
+    monitor_task    = asyncio.create_task(_price_monitor_loop())
+    reconcile_task  = asyncio.create_task(_reconcile_loop())
     asyncio.create_task(run_scan())   # initial scan on startup
 
     yield
@@ -537,6 +585,7 @@ async def lifespan(app: FastAPI):
     scan_task.cancel()
     news_task.cancel()
     monitor_task.cancel()
+    reconcile_task.cancel()
     scanner.disconnect()
     news_client.shutdown()
 
@@ -666,6 +715,16 @@ async def api_journal_update(entry_id: str, status: str,
             "reload":  True,
         })
         return {"ok": True, "entry": updated}
+    return {"ok": False, "reason": "entry not found"}
+
+
+@app.delete("/api/journal/{entry_id}")
+async def api_journal_delete(entry_id: str):
+    """Permanently delete a single journal entry."""
+    deleted = jnl.delete_entry(entry_id)
+    if deleted:
+        await broadcast({"type": "journal_update", "summary": jnl.get_summary(), "reload": True})
+        return {"ok": True}
     return {"ok": False, "reason": "entry not found"}
 
 
@@ -802,14 +861,45 @@ async def api_journal_reset():
 
 @app.post("/api/journal/close-all")
 async def api_journal_close_all():
-    """Mark all OPEN trades as CANCELLED."""
+    """Close all OPEN trades at current market price (WIN/LOSS), updating capital."""
     entries = jnl.get_entries(500)
-    open_ids = [e["id"] for e in entries if e.get("status") == "OPEN"]
+    open_entries = [e for e in entries if e.get("status") == "OPEN"]
+    if not open_entries:
+        return {"ok": True, "closed": 0}
+
+    # Fetch live prices grouped by market type
+    spot_entries    = [e for e in open_entries if e.get("market_type", "spot") == "spot"]
+    futures_entries = [e for e in open_entries if e.get("market_type") == "futures"]
+    prices: Dict[str, float] = {}
+    if spot_entries:
+        sp = await scanner.fetch_current_prices(
+            list({e["symbol"] for e in spot_entries}), "spot")
+        prices.update(sp)
+    if futures_entries:
+        fp = await scanner.fetch_current_prices(
+            list({e["symbol"] for e in futures_entries}), "futures")
+        prices.update(fp)
+
     count = 0
-    for eid in open_ids:
-        result = jnl.update_entry(eid, "CANCELLED", notes="bulk close-all")
+    for e in open_entries:
+        price   = prices.get(e["symbol"])
+        entry_p = e.get("entry") or 0
+        sig     = e.get("signal", "BULLISH")
+
+        if price and entry_p:
+            # Determine WIN/LOSS from current price direction
+            if sig == "BULLISH":
+                status = "WIN" if price >= entry_p else "LOSS"
+            else:
+                status = "WIN" if price <= entry_p else "LOSS"
+            result = jnl.update_entry(e["id"], status, price, notes="bulk close-all")
+        else:
+            # No live price available — cancel without P&L impact
+            result = jnl.update_entry(e["id"], "CANCELLED", notes="bulk close-all (no price)")
+
         if result:
             count += 1
+
     await broadcast({
         "type":    "journal_update",
         "summary": jnl.get_summary(),

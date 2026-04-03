@@ -188,6 +188,7 @@ class PortfolioState:
     total_pnl:            float = 0.0
     circuit_breaker:      CircuitBreakerState = CircuitBreakerState.NORMAL
     recovery_wins:        int = 0
+    recovery_entered_at:  Optional[datetime] = None
 
     @property
     def daily_pnl_pct(self) -> float:

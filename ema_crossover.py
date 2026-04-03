@@ -223,6 +223,31 @@ class EMACrossoverStrategy:
         return SignalComponent("macd_momentum", s.macd_hist,
                                sc, SIGNAL_WEIGHTS["macd_momentum"], det)
 
+    def peek_signal(
+        self,
+        symbol: str,
+        snapshot: IndicatorSnapshot,
+    ) -> Optional[Signal]:
+        """
+        Returns the signal for this bar WITHOUT updating cooldown state.
+        Used by the engine to detect counter-signals on open trades before
+        entry logic runs. Cooldown is intentionally skipped — an open trade
+        should exit on a counter-signal even during cooldown periods.
+        """
+        if self._has_nan_required(snapshot):
+            return None
+
+        long_sig  = self._eval_long(symbol, snapshot)
+        short_sig = self._eval_short(symbol, snapshot)
+        candidates = [s for s in [long_sig, short_sig] if s is not None]
+        if not candidates:
+            return None
+
+        signal = max(candidates, key=lambda s: s.score)
+        if signal.score >= self.cfg.min_confluence_score:
+            return signal
+        return None
+
     # ── Helpers ───────────────────────────────────────────────
 
     def _weighted_score(self, components: List[SignalComponent]) -> float:

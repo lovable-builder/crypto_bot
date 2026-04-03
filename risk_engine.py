@@ -1,6 +1,6 @@
 import logging
 from typing import Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from models import (
     Signal, Trade, Side, PortfolioState,
@@ -147,9 +147,23 @@ class RiskEngine:
         if dd >= self.cfg.max_drawdown_pct:
             portfolio.circuit_breaker = CircuitBreakerState.HALTED
         elif portfolio.circuit_breaker == CircuitBreakerState.RECOVERY:
+            # Exit recovery if win streak requirement is met
             if portfolio.recovery_wins >= self.cfg.recovery_win_streak_required:
                 portfolio.circuit_breaker = CircuitBreakerState.NORMAL
                 portfolio.recovery_wins = 0
+                portfolio.recovery_entered_at = None
+                logger.info("Recovery mode exited: win streak requirement met")
+            # Force-exit recovery after max_recovery_days to avoid permanent half-size trading
+            elif portfolio.recovery_entered_at is not None:
+                days_in_recovery = (datetime.now(timezone.utc) - portfolio.recovery_entered_at) / timedelta(days=1)
+                if days_in_recovery >= self.cfg.max_recovery_days:
+                    portfolio.circuit_breaker = CircuitBreakerState.NORMAL
+                    portfolio.recovery_wins = 0
+                    portfolio.recovery_entered_at = None
+                    logger.warning(
+                        "Recovery mode force-exited after %.0f days (max=%d)",
+                        days_in_recovery, self.cfg.max_recovery_days,
+                    )
         return portfolio.circuit_breaker
 
     def record_trade_result(self, trade: Trade, portfolio: PortfolioState):
@@ -164,6 +178,8 @@ class RiskEngine:
         if (portfolio.circuit_breaker == CircuitBreakerState.NORMAL and
                 portfolio.current_drawdown_pct >= self.cfg.max_drawdown_pct * 0.6):
             portfolio.circuit_breaker = CircuitBreakerState.RECOVERY
+            portfolio.recovery_entered_at = datetime.now(timezone.utc)
+            logger.warning("Recovery mode entered: drawdown=%.1f%%", portfolio.current_drawdown_pct)
 
     def reset_daily_pnl(self, portfolio: PortfolioState):
         portfolio.daily_pnl = 0.0

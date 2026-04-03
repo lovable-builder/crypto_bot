@@ -143,8 +143,28 @@ def log_signal(opp: dict) -> Optional[dict]:
     if not (opp.get("entry") and opp.get("stop") and opp.get("target")):
         return None
 
+    # Spot markets cannot short — silently reject BEARISH signals
+    if opp.get("market_type", "spot") == "spot" and opp.get("signal") == "BEARISH":
+        return None
+
     with _lock:
         entries = _load()
+
+        # ── Enforce concurrent trade limit atomically (inside lock so no race) ──
+        open_count = sum(1 for e in entries if e.get("status") == "OPEN")
+        if open_count >= cap_mgr.MAX_CONCURRENT_TRADES:
+            return None
+
+        # ── Enforce daily budget (prevents bypass via direct calls) ────────────
+        try:
+            budget = cap_mgr.get_daily_budget()
+            if budget["daily_blocked"]:
+                logger.warning(
+                    "Journal: daily budget cap hit — skipping %s", opp.get("symbol")
+                )
+                return None
+        except Exception as budget_err:
+            logger.warning("Journal: could not check daily budget: %s", budget_err)
 
         # Deduplicate: same symbol with status OPEN (don't block re-logging after a trade closes)
         for e in entries:
@@ -212,8 +232,13 @@ def update_entry(entry_id: str, status: str,
                         try:
                             effective_pct = e["pnl"] / pos_val * 100
                             cap_mgr.apply_trade_result(effective_pct, pos_val)
-                        except Exception:
-                            pass
+                        except Exception as cap_err:
+                            logger.error(
+                                "Capital update failed for %s — journal and capital.json "
+                                "may be out of sync. Run /api/capital/reconcile to fix. "
+                                "Error: %s",
+                                entry_id, cap_err,
+                            )
 
                 _save(entries)
                 logger.info(f"Journal: updated {entry_id} → {status}")
@@ -251,6 +276,18 @@ def set_trailing(entry_id: str, enabled: bool,
                 _save(entries)
                 return e
     return None
+
+
+def delete_entry(entry_id: str) -> bool:
+    """Permanently delete a single journal entry by ID. Returns True if found and deleted."""
+    with _lock:
+        entries = _load()
+        new_entries = [e for e in entries if e["id"] != entry_id]
+        if len(new_entries) == len(entries):
+            return False
+        _save(new_entries)
+        logger.info(f"Journal: deleted entry {entry_id}")
+        return True
 
 
 def reset_journal() -> dict:
